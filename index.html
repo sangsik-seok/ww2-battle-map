@@ -138,12 +138,35 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
   #timeline-bar{padding-bottom:max(14px,env(safe-area-inset-bottom));}
 }
 
-/* MOBILE landscape + tablet — pointer:coarse covers both */
+/* MOBILE landscape (height < 500px) — panel collapsible, map takes full width */
+@media(pointer: coarse) and (max-height:500px){
+  #side-panel{
+    position:absolute;right:0;top:0;bottom:0;width:300px;
+    border-left:1px solid var(--border);border-top:none;
+    transform:translateX(100%);transition:transform .3s ease;z-index:15;
+    height:auto;
+  }
+  #side-panel.open{transform:translateX(0);}
+  #mpanel-btn{
+    position:absolute;right:11px;top:50%;transform:translateY(-50%);
+    z-index:16;background:var(--paper);border:1px solid var(--border);
+    border-radius:50%;width:36px;height:36px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;cursor:pointer;color:var(--tan);bottom:auto;
+  }
+  #side-panel.open ~ #mpanel-btn,
+  #mpanel-btn.panel-open{right:311px;}
+  #speed-wrap,#filter-group,#filter-label{display:none;}
+  #size-legend{display:none;}
+  /* legend compact on landscape */
+  #legend{padding:6px 10px;}
+  .legend-row{margin-bottom:4px;font-size:12px;}
+}
+
+/* MOBILE/tablet touch — general readability */
 @media(pointer: coarse){
-  #size-legend{display:none !important;}
-  /* tabs */
+  #size-legend{display:block;}
   .tab{font-size:13px;padding:12px 8px;letter-spacing:0.04em;}
-  /* battle detail */
   .b-name{font-size:26px;}
   .b-meta{font-size:12px;}
   .b-badge{font-size:11px;padding:4px 10px;}
@@ -154,20 +177,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
   .b-cmdr-title{font-size:11px;}
   .cmdr-side{font-size:11px;}
   .cmdr-name{font-size:14px;}
-  /* battle list */
   .bi-name{font-size:17px;}
   .bi-meta{font-size:11px;}
   .ri-a,.ri-x{font-size:11px;padding:2px 7px;}
-  /* auto highlight */
   .ah-label{font-size:11px;}
   .ah-name{font-size:20px;}
   .ah-meta{font-size:11px;}
-  /* legend */
   #legend{padding:12px 14px;}
   .legend-row{font-size:14px;font-weight:500;color:rgba(200,184,138,0.92);margin-bottom:8px;gap:10px;}
   .ls{width:20px;height:11px;}
   .ls.dot{width:13px;height:13px;}
-  /* timeline */
   #tl-phase{font-size:11px;}
   #timeline-labels{font-size:10px;}
 }
@@ -202,10 +221,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
       <div id="map-tooltip"></div>
       <div id="mpanel-btn">ℹ</div>
       <div id="size-legend">
-        <div style="font-size:8px;color:var(--tan);margin-bottom:4px;letter-spacing:0.06em;">마커 크기 = 전투 규모</div>
-        <div class="sl-row"><svg width="16" height="16"><circle cx="8" cy="8" r="2" fill="none" stroke="#888" stroke-width="1"/></svg>소규모</div>
-        <div class="sl-row"><svg width="16" height="16"><circle cx="8" cy="8" r="3" fill="none" stroke="#888" stroke-width="1"/></svg>중규모</div>
-        <div class="sl-row"><svg width="16" height="16"><circle cx="8" cy="8" r="4.5" fill="none" stroke="#888" stroke-width="1"/></svg>대규모</div>
+        <div id="size-legend-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:5px;" onclick="toggleSizeLegend()">
+          <span style="font-size:8px;color:var(--tan);letter-spacing:0.06em;">전투 규모</span>
+          <span id="size-legend-arrow" style="font-size:10px;color:var(--muted);">▲</span>
+        </div>
+        <div id="size-legend-body">
+          <div class="sl-row"><svg width="22" height="22"><circle cx="11" cy="11" r="5" fill="#888"/></svg>소규모 (링 없음)</div>
+          <div class="sl-row"><svg width="22" height="22"><circle cx="11" cy="11" r="5" fill="#888"/><circle cx="11" cy="11" r="9" fill="none" stroke="#888" stroke-width="1.2"/></svg>중규모 (링 1개)</div>
+          <div class="sl-row"><svg width="26" height="26"><circle cx="13" cy="13" r="5" fill="#888"/><circle cx="13" cy="13" r="9" fill="none" stroke="#888" stroke-width="1.2"/><circle cx="13" cy="13" r="13" fill="none" stroke="#888" stroke-width="1" opacity="0.6"/></svg>대규모 (링 2개)</div>
+        </div>
       </div>
       <div id="timeline-bar">
         <div id="tl-top">
@@ -241,14 +265,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
         </div>
       </div>
       <div id="legend">
-        <div class="legend-row"><div class="ls" style="background:#1e3d6e"></div>연합국 점령/통제</div>
-        <div class="legend-row"><div class="ls" style="background:#6e1e1e"></div>추축국 점령/통제</div>
-        <div class="legend-row"><div class="ls" style="background:#3d2a1a"></div>비시 프랑스 (괴뢰)</div>
-        <div class="legend-row"><div class="ls" style="background:#252b1a"></div>중립국</div>
-        <div class="legend-row"><div class="ls dot" style="background:#2980b9"></div>연합군 승전 마커</div>
-        <div class="legend-row"><div class="ls dot" style="background:#c0392b"></div>추축군 승전 마커</div>
-        <div class="legend-row"><div style="width:20px;height:2px;background:#c0392b;border-radius:1px;flex-shrink:0;"></div>추축 전선</div>
-        <div class="legend-row"><div style="width:20px;height:2px;border-top:2px dashed #2980b9;flex-shrink:0;"></div>연합 전선</div>
+        <div class="legend-row"><div class="ls" style="background:#2a5298"></div>연합국 점령/통제</div>
+        <div class="legend-row"><div class="ls" style="background:#982a2a"></div>추축국 점령/통제</div>
+        <div class="legend-row"><div class="ls" style="background:#6b4a28"></div>비시 프랑스 (괴뢰)</div>
+        <div class="legend-row"><div class="ls" style="background:#3a4228"></div>중립국</div>
+        <div class="legend-row"><div class="ls dot" style="background:#3a9fd8"></div>연합군 승전 마커</div>
+        <div class="legend-row"><div class="ls dot" style="background:#d44030"></div>추축군 승전 마커</div>
+        <div class="legend-row"><div style="width:20px;height:2px;background:#d44030;border-radius:1px;flex-shrink:0;"></div>추축 전선</div>
+        <div class="legend-row"><div style="width:20px;height:2px;border-top:2px dashed #3a9fd8;flex-shrink:0;"></div>연합 전선</div>
       </div>
     </div>
   </div>
@@ -410,8 +434,8 @@ const CONTROL = {
   'MD':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
 };
 
-const STATE_COLORS = { allied:'#1e3d6e', axis:'#6e1e1e', neutral:'#252b1a', vichy:'#3d2a1a' };
-const DEFAULT_COLOR = '#1a1e12';
+const STATE_COLORS = { allied:'#2a5298', axis:'#982a2a', neutral:'#3a4228', vichy:'#6b4a28' };
+const DEFAULT_COLOR = '#2a3020';
 
 // ── FRONTLINES (approximate polylines per month range) ────────────────────
 // Each entry: {from, to, theater, type:'allied'|'axis', points:[[lon,lat],...]}
@@ -462,7 +486,7 @@ function monthToLabel(m) {
 }
 function scaleToRadius(s){
   const mobile = window.matchMedia('(pointer: coarse)').matches;
-  return mobile ? 1 + (s/10)*1.8 : 1.5 + (s/10)*3;
+  return mobile ? 2 + (s/10)*5 : 3 + (s/10)*6;
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────
@@ -624,37 +648,64 @@ function updateFrontlines() {
   });
 }
 
+// scale 1-4: 링 없음 (소), 5-7: 링 1개 (중), 8-10: 링 2개 (대)
+function ringCount(s) { return s <= 4 ? 0 : s <= 7 ? 1 : 2; }
+function scaleToRadius(s) {
+  const mobile = window.matchMedia('(pointer: coarse)').matches;
+  return mobile ? 4 : 5;
+}
+function ringGap(s) { return window.matchMedia('(pointer: coarse)').matches ? 4 : 4; }
+
 // ── MARKERS ───────────────────────────────────────────────────────────────
 function buildMarkers() {
+  const color = d => d.result === 'allied' ? '#3a9fd8' : '#d44030';
+
   const groups = markerGroup.selectAll('g.battle-marker')
     .data(BATTLES).join('g')
     .attr('class','battle-marker')
     .attr('transform', d => { const p = projection([d.lon,d.lat]); return p?`translate(${p[0]},${p[1]})`:'translate(-9999,-9999)'; })
     .style('display','none')
     .on('click', (e,d) => { e.stopPropagation(); selectBattle(d); })
-    .on('mouseenter', (e,d) => showTooltip(e, `<strong style="color:${d.result==='allied'?'#5ba3cf':'#e05a4a'}">${d.name}</strong><br>${monthToLabel(d.month)} · ${d.loc}`))
+    .on('mouseenter', (e,d) => showTooltip(e, `<strong style="color:${color(d)}">${d.name}</strong><br>${monthToLabel(d.month)} · ${d.loc}<br>규모: ${d.scale <= 4 ? '소' : d.scale <= 7 ? '중' : '대'}`))
     .on('mouseleave', hideTooltip)
     .on('touchstart', function(e,d){ e.preventDefault(); selectBattle(d); },{passive:false});
 
-  groups.append('circle').attr('class','bm-pulse').attr('r',0).attr('fill','none')
-    .attr('stroke', d => d.result==='allied'?'#2980b9':'#c0392b').attr('stroke-width',1).attr('opacity',0);
+  // pulse ring (always outermost)
+  groups.append('circle').attr('class','bm-pulse').attr('r',0)
+    .attr('fill','none')
+    .attr('stroke', color).attr('stroke-width',0.8).attr('opacity',0);
+
+  // outer ring 2 (대규모만)
+  groups.append('circle').attr('class','bm-ring2')
+    .attr('r', d => scaleToRadius(d.scale) + ringGap(d.scale) * 2)
+    .attr('fill','none')
+    .attr('stroke', color).attr('stroke-width', 1)
+    .attr('opacity', d => ringCount(d.scale) >= 2 ? 0.6 : 0);
+
+  // outer ring 1 (중·대규모)
+  groups.append('circle').attr('class','bm-ring1')
+    .attr('r', d => scaleToRadius(d.scale) + ringGap(d.scale))
+    .attr('fill','none')
+    .attr('stroke', color).attr('stroke-width', 1.2)
+    .attr('opacity', d => ringCount(d.scale) >= 1 ? 0.75 : 0);
+
+  // core dot
   groups.append('circle').attr('class','bm-dot')
     .attr('r', d => scaleToRadius(d.scale))
-    .attr('fill', d => d.result==='allied'?'#2980b9':'#c0392b')
-    .attr('stroke','#fff').attr('stroke-width',1.2);
+    .attr('fill', color)
+    .attr('stroke','rgba(255,255,255,0.6)').attr('stroke-width',1);
 
   animatePulse();
 }
 
 function animatePulse() {
-  // Use a simple interval instead of recursive d3 transitions to avoid timer buildup
   setInterval(() => {
     markerGroup.selectAll('circle.bm-pulse')
       .filter(function(){ return d3.select(this.parentNode).style('display') !== 'none'; })
-      .attr('r', d => scaleToRadius(d.scale))
-      .attr('opacity', 0.65)
+      .attr('r', d => scaleToRadius(d.scale) + ringGap(d.scale) * (ringCount(d.scale) >= 2 ? 3 : 2))
+      .attr('opacity', 0.55)
       .transition().duration(1600).ease(d3.easeQuadOut)
-      .attr('r', d => scaleToRadius(d.scale) * 2)
+      .attr('r', d => scaleToRadius(d.scale) + ringGap(d.scale) * (ringCount(d.scale) >= 2 ? 5 : 4))
       .attr('opacity', 0);
   }, 1800);
 }
@@ -664,11 +715,14 @@ function updateMarkers() {
     const diff = currentMonth - d.month;
     const inFilter = activeFilters.has(d.theater);
     let show = false, past = false;
-    if (inFilter && diff >= 0 && diff <= 3) { show = true; }          // recent: full
-    else if (inFilter && diff > 3 && diff <= 24) { show = true; past = true; } // old: faded
+    if (inFilter && diff >= 0 && diff <= 3) { show = true; }
+    else if (inFilter && diff > 3 && diff <= 24) { show = true; past = true; }
     d3.select(this).style('display', show ? 'block' : 'none');
     d3.select(this).classed('bm-past', past);
-    d3.select(this).select('circle.bm-dot').attr('opacity', past ? 0.28 : 1);
+    const opacity = past ? 0.25 : 1;
+    d3.select(this).select('circle.bm-dot').attr('opacity', opacity);
+    d3.select(this).select('circle.bm-ring1').attr('opacity', function(d){ return past ? 0 : (ringCount(d.scale)>=1 ? 0.75 : 0); });
+    d3.select(this).select('circle.bm-ring2').attr('opacity', function(d){ return past ? 0 : (ringCount(d.scale)>=2 ? 0.6  : 0); });
     d3.select(this).select('circle.bm-pulse').style('display', past ? 'none' : 'block');
   });
 }
@@ -887,7 +941,11 @@ document.querySelectorAll('[data-filter]').forEach(btn => {
 
 // ── MOBILE PANEL ──────────────────────────────────────────────────────────
 document.getElementById('mpanel-btn').addEventListener('click', () => {
-  document.getElementById('side-panel').classList.toggle('open');
+  const panel = document.getElementById('side-panel');
+  const btn = document.getElementById('mpanel-btn');
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('panel-open', isOpen);
+  btn.textContent = isOpen ? '✕' : 'ℹ';
 });
 
 // ── RESIZE ────────────────────────────────────────────────────────────────
@@ -903,7 +961,20 @@ window.addEventListener('resize', () => {
   });
 });
 
-// ── INIT ──────────────────────────────────────────────────────────────────
+// ── SIZE LEGEND TOGGLE ────────────────────────────────────────────────────
+function toggleSizeLegend() {
+  const body = document.getElementById('size-legend-body');
+  const arrow = document.getElementById('size-legend-arrow');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? 'block' : 'none';
+  arrow.textContent = hidden ? '▲' : '▼';
+}
+// mobile: start collapsed
+if (window.matchMedia('(pointer: coarse)').matches) {
+  document.getElementById('size-legend-body').style.display = 'none';
+  document.getElementById('size-legend-arrow').textContent = '▼';
+  document.getElementById('size-legend').style.display = 'block';
+}
 loadMap().catch(e => { document.getElementById('loading-text').textContent='로딩 실패: '+e.message; });
 </script>
 </body>
