@@ -129,72 +129,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
 #loading-bar-wrap{width:180px;height:2px;background:rgba(200,184,138,0.1);border-radius:2px;}
 #loading-bar{height:100%;width:0%;background:var(--tan);border-radius:2px;transition:width .3s;}
 
-/* MOBILE portrait */
-@media(max-width:680px){
-  #side-panel{position:absolute;bottom:80px;left:0;right:0;width:auto;height:46vh;border-left:none;border-top:1px solid var(--border);transform:translateY(100%);transition:transform .3s ease;z-index:15;}
-  #side-panel.open{transform:translateY(0);}
-  #mpanel-btn{position:absolute;bottom:82px;right:11px;z-index:16;background:var(--paper);border:1px solid var(--border);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--tan);}
-  #speed-wrap,#filter-group,#filter-label{display:none;}
-  #size-legend{display:none;}
-  #timeline-bar{padding-bottom:max(14px,env(safe-area-inset-bottom));}
-}
-
-/* MOBILE landscape (height < 500px) — panel slides from right */
-@media(pointer: coarse) and (max-height:500px){
-  #side-panel{
-    position:absolute;right:0;top:0;
-    width:280px;
-    height:100vh;height:100dvh;
-    border-left:1px solid var(--border);border-top:none;
-    transform:translateX(100%);transition:transform .3s ease;z-index:15;
-    display:flex;flex-direction:column;overflow:hidden;max-height:none;
-  }
-  #side-panel.open{transform:translateX(0);}
-  #panel-content{flex:1;overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch;}
-  #legend{max-height:30vh;overflow-y:auto;flex-shrink:0;}
-  #mpanel-btn{
-    position:absolute;right:11px;top:50%;bottom:auto;
-    transform:translateY(-50%);z-index:16;
-    background:var(--paper);border:1px solid var(--border);
-    border-radius:50%;width:36px;height:36px;
-    display:flex;align-items:center;justify-content:center;
-    font-size:14px;cursor:pointer;color:var(--tan);
-  }
-  #mpanel-btn.panel-open{right:291px;}
-  #speed-wrap,#filter-group,#filter-label,#size-legend{display:none !important;}
-  #legend{padding:6px 10px;}
-  .legend-row{margin-bottom:4px;font-size:12px;color:rgba(200,184,138,0.85);}
-}
-
-/* MOBILE/tablet touch — general readability */
-@media(pointer: coarse){
-  #size-legend{display:block;}
-  .tab{font-size:13px;padding:12px 8px;letter-spacing:0.04em;}
-  .b-name{font-size:26px;}
-  .b-meta{font-size:12px;}
-  .b-badge{font-size:11px;padding:4px 10px;}
-  .b-desc{font-size:14px;line-height:1.8;}
-  .stat-row{font-size:13px;padding:7px 0;}
-  .stat-label{font-size:12px;}
-  .stat-val{font-size:13px;}
-  .b-cmdr-title{font-size:11px;}
-  .cmdr-side{font-size:11px;}
-  .cmdr-name{font-size:14px;}
-  .bi-name{font-size:17px;}
-  .bi-meta{font-size:11px;}
-  .ri-a,.ri-x{font-size:11px;padding:2px 7px;}
-  .ah-label{font-size:11px;}
-  .ah-name{font-size:20px;}
-  .ah-meta{font-size:11px;}
-  #legend{padding:12px 14px;}
-  .legend-row{font-size:14px;font-weight:500;color:rgba(200,184,138,0.92);margin-bottom:8px;gap:10px;}
-  .ls{width:20px;height:11px;}
-  .ls.dot{width:13px;height:13px;}
-  #tl-phase{font-size:11px;}
-  #timeline-labels{font-size:10px;}
-}
-
-@media(min-width:681px){#mpanel-btn{display:none;}}</style>
+/* MPANEL BTN — hidden by default, JS shows it on touch devices */
+#mpanel-btn{display:none;position:absolute;z-index:16;background:var(--paper);border:1px solid var(--border);border-radius:50%;width:40px;height:40px;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--tan);}
+</style>
 </head>
 <body>
 <div id="app">
@@ -942,109 +879,160 @@ document.querySelectorAll('[data-filter]').forEach(btn => {
   });
 });
 
-// ── MOBILE LAYOUT (JS-based for cross-browser compatibility) ──────────────
+// ── MOBILE LAYOUT (fully JS-controlled, no CSS media queries) ─────────────
 function isTouchDevice() {
-  return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-}
-function isLandscape() {
-  return window.innerWidth > window.innerHeight;
+  return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 }
 
-function applyMobileLayout() {
+function applyLayout() {
   const touch = isTouchDevice();
-  const landscape = isLandscape();
-  const panel = document.getElementById('side-panel');
-  const btn = document.getElementById('mpanel-btn');
-  const sizeLegend = document.getElementById('size-legend');
+  const landscape = window.innerWidth > window.innerHeight;
+  const panel     = document.getElementById('side-panel');
+  const btn       = document.getElementById('mpanel-btn');
+  const sizeLeg   = document.getElementById('size-legend');
+  const speedWrap = document.getElementById('speed-wrap');
+  const filterGrp = document.getElementById('filter-group');
+  const filterLbl = document.getElementById('filter-label');
+  const isOpen    = panel.classList.contains('open');
 
-  if (!touch) return; // desktop: CSS handles everything
+  if (!touch) {
+    // ── DESKTOP ──────────────────────────────────────────────────────────
+    btn.style.display = 'none';
+    panel.removeAttribute('style');
+    sizeLeg.style.display = 'block';
+    speedWrap.style.display = '';
+    filterGrp.style.display = '';
+    filterLbl.style.display = '';
+    return;
+  }
+
+  // ── TOUCH DEVICE ─────────────────────────────────────────────────────
+  btn.style.display = 'flex';
+  speedWrap.style.display = 'none';
+  filterGrp.style.display = '';  // keep filters visible on touch
+  filterLbl.style.display = '';
+
+  // Readability: larger text on touch
+  document.documentElement.style.setProperty('--touch', '1');
 
   if (landscape) {
-    // Landscape: panel slides in from right, full height
-    panel.style.position = 'absolute';
-    panel.style.right = '0';
-    panel.style.top = '0';
-    panel.style.bottom = '0';
-    panel.style.left = 'auto';
-    panel.style.width = '280px';
-    panel.style.height = '100%';
-    panel.style.borderLeft = '1px solid rgba(200,184,138,0.18)';
-    panel.style.borderTop = 'none';
-    panel.style.transform = panel.classList.contains('open') ? 'translateX(0)' : 'translateX(100%)';
-    // btn: middle right
-    btn.style.position = 'absolute';
-    btn.style.right = panel.classList.contains('open') ? '291px' : '11px';
-    btn.style.top = '50%';
-    btn.style.bottom = 'auto';
-    btn.style.transform = 'translateY(-50%)';
-    btn.style.display = 'flex';
-    // size legend: hidden in landscape
-    sizeLegend.style.display = 'none';
+    // Panel slides in from the RIGHT, full screen height
+    const panelW = Math.min(300, Math.round(window.innerWidth * 0.38));
+    panel.style.cssText = `
+      position:absolute; top:0; right:0; bottom:0; left:auto;
+      width:${panelW}px; height:${window.innerHeight}px;
+      max-height:${window.innerHeight}px;
+      border-left:1px solid rgba(200,184,138,0.18); border-top:none;
+      display:flex; flex-direction:column; overflow:hidden;
+      transform:${isOpen ? 'translateX(0)' : `translateX(${panelW}px)`};
+      transition:transform .3s ease; z-index:15;
+      background:rgba(8,9,6,0.97);
+    `;
+    // toggle button: vertically centered, moves with panel
+    btn.style.cssText = `
+      display:flex; position:absolute; z-index:16;
+      right:${isOpen ? panelW + 8 : 11}px;
+      top:${Math.round(window.innerHeight/2) - 20}px;
+      width:40px; height:40px; border-radius:50%;
+      background:rgba(17,18,9,0.95); border:1px solid rgba(200,184,138,0.25);
+      align-items:center; justify-content:center;
+      font-size:16px; cursor:pointer; color:#c8b88a;
+      transition:right .3s ease;
+    `;
+    sizeLeg.style.display = 'none';
+    // legend: compact
+    document.getElementById('legend').style.maxHeight = Math.round(window.innerHeight * 0.35) + 'px';
+    document.getElementById('legend').style.overflowY = 'auto';
+    applyTouchTextSize(true);
   } else {
-    // Portrait: panel slides up from bottom
-    panel.style.position = 'absolute';
-    panel.style.bottom = '80px';
-    panel.style.left = '0';
-    panel.style.right = '0';
-    panel.style.top = 'auto';
-    panel.style.width = 'auto';
-    panel.style.height = '46vh';
-    panel.style.borderLeft = 'none';
-    panel.style.borderTop = '1px solid rgba(200,184,138,0.18)';
-    panel.style.transform = panel.classList.contains('open') ? 'translateY(0)' : 'translateY(100%)';
-    // btn: bottom right
-    btn.style.position = 'absolute';
-    btn.style.right = '11px';
-    btn.style.bottom = '82px';
-    btn.style.top = 'auto';
-    btn.style.transform = 'none';
-    btn.style.display = 'flex';
-    // size legend: visible
-    sizeLegend.style.display = 'block';
+    // Portrait: panel slides up from BOTTOM
+    const panelH = Math.round(window.innerHeight * 0.46);
+    const tlH = 80; // timeline bar approx height
+    panel.style.cssText = `
+      position:absolute; bottom:${tlH}px; left:0; right:0; top:auto;
+      width:100%; height:${panelH}px; max-height:${panelH}px;
+      border-top:1px solid rgba(200,184,138,0.18); border-left:none;
+      display:flex; flex-direction:column; overflow:hidden;
+      transform:${isOpen ? 'translateY(0)' : `translateY(${panelH + tlH}px)`};
+      transition:transform .3s ease; z-index:15;
+      background:rgba(8,9,6,0.97);
+    `;
+    btn.style.cssText = `
+      display:flex; position:absolute; z-index:16;
+      right:12px; bottom:${tlH + 8}px; top:auto;
+      width:40px; height:40px; border-radius:50%;
+      background:rgba(17,18,9,0.95); border:1px solid rgba(200,184,138,0.25);
+      align-items:center; justify-content:center;
+      font-size:16px; cursor:pointer; color:#c8b88a;
+    `;
+    sizeLeg.style.display = 'block';
+    sizeLeg.style.bottom = (tlH + 55) + 'px';
+    document.getElementById('legend').style.maxHeight = '';
+    document.getElementById('legend').style.overflowY = '';
+    applyTouchTextSize(false);
   }
 }
 
-// ── MOBILE PANEL ──────────────────────────────────────────────────────────
+function applyTouchTextSize(landscape) {
+  // Apply larger text for touch devices via inline styles on key elements
+  const scale = landscape ? 0.88 : 1;
+  const styles = {
+    '.tab':        `font-size:${Math.round(13*scale)}px; padding:${Math.round(12*scale)}px 8px;`,
+    '.b-name':     `font-size:${Math.round(26*scale)}px;`,
+    '.b-meta':     `font-size:${Math.round(12*scale)}px;`,
+    '.b-desc':     `font-size:${Math.round(14*scale)}px; line-height:1.8;`,
+    '.stat-row':   `font-size:${Math.round(13*scale)}px;`,
+    '.bi-name':    `font-size:${Math.round(17*scale)}px;`,
+    '.bi-meta':    `font-size:${Math.round(11*scale)}px;`,
+    '.legend-row': `font-size:${Math.round(14*scale)}px; font-weight:500; color:rgba(200,184,138,0.92); margin-bottom:${Math.round(8*scale)}px; gap:10px;`,
+    '.ls':         `width:${Math.round(20*scale)}px; height:${Math.round(11*scale)}px;`,
+  };
+  // inject into a dedicated style tag
+  let styleTag = document.getElementById('touch-styles');
+  if (!styleTag) { styleTag = document.createElement('style'); styleTag.id='touch-styles'; document.head.appendChild(styleTag); }
+  styleTag.textContent = Object.entries(styles).map(([sel, css]) => `${sel}{${css}}`).join('\n');
+}
+
+// ── MOBILE PANEL TOGGLE ────────────────────────────────────────────────────
 document.getElementById('mpanel-btn').addEventListener('click', () => {
   const panel = document.getElementById('side-panel');
-  const btn = document.getElementById('mpanel-btn');
+  const btn   = document.getElementById('mpanel-btn');
   const isOpen = panel.classList.toggle('open');
-  btn.classList.toggle('panel-open', isOpen);
   btn.textContent = isOpen ? '✕' : 'ℹ';
-  applyMobileLayout(); // re-apply to update btn position
+  applyLayout();
 });
 
 // ── RESIZE ────────────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
-  W=mapWrap.clientWidth; H=mapWrap.clientHeight;
+  W = mapWrap.clientWidth; H = mapWrap.clientHeight;
   projection.rotate(projection.rotate()).fitSize([W, H], {type:'Sphere'});
   lastRotationTarget = null;
   g.selectAll('path').attr('d', pathGen);
   countryGroup.selectAll('path').attr('d', pathGen);
   buildFrontlines(); updateFrontlines();
   markerGroup.selectAll('g.battle-marker').attr('transform', d => {
-    const p = projection([d.lon,d.lat]); return p?`translate(${p[0]},${p[1]})`:'translate(-9999,-9999)';
+    const p = projection([d.lon, d.lat]);
+    return p ? `translate(${p[0]},${p[1]})` : 'translate(-9999,-9999)';
   });
-  applyMobileLayout();
+  applyLayout();
 });
 
 // ── SIZE LEGEND TOGGLE ────────────────────────────────────────────────────
 function toggleSizeLegend() {
-  const body = document.getElementById('size-legend-body');
+  const body  = document.getElementById('size-legend-body');
   const arrow = document.getElementById('size-legend-arrow');
   const hidden = body.style.display === 'none';
-  body.style.display = hidden ? 'block' : 'none';
-  arrow.textContent = hidden ? '▲' : '▼';
+  body.style.display  = hidden ? 'block' : 'none';
+  arrow.textContent   = hidden ? '▲' : '▼';
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-// Apply mobile layout and size legend state on load
 if (isTouchDevice()) {
   document.getElementById('size-legend-body').style.display = 'none';
-  document.getElementById('size-legend-arrow').textContent = '▼';
-  applyMobileLayout();
+  document.getElementById('size-legend-arrow').textContent  = '▼';
 }
-loadMap().catch(e => { document.getElementById('loading-text').textContent='로딩 실패: '+e.message; });
+applyLayout();
+loadMap().catch(e => { document.getElementById('loading-text').textContent = '로딩 실패: ' + e.message; });
 </script>
 </body>
 </html>
