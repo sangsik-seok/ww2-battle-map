@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>2차 세계대전 인터랙티브 지도</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600&family=Share+Tech+Mono&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080906;--paper:#111209;--tan:#c8b88a;--tan2:#9e8e60;
+  --allied:#1e3d6e;--axis:#6e1e1e;--neutral:#252b1a;--ocean:#0b1520;
+  --vichy:#3d2a1a;
+  --text:#e8dfc0;--muted:rgba(200,184,138,0.45);--border:rgba(200,184,138,0.13);
+  --panel:rgba(8,9,6,0.96);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;}
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* HEADER */
+#header{flex-shrink:0;background:var(--paper);border-bottom:1px solid var(--border);padding:7px 14px;display:flex;align-items:center;gap:10px;z-index:20;flex-wrap:wrap;}
+#header-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:0.1em;color:var(--tan);white-space:nowrap;}
+#date-display{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--tan);background:rgba(200,184,138,0.07);border:1px solid var(--border);border-radius:3px;padding:3px 8px;white-space:nowrap;}
+.hbtn{background:rgba(200,184,138,0.07);border:1px solid var(--border);border-radius:3px;color:var(--tan);height:28px;padding:0 9px;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;-webkit-tap-highlight-color:transparent;transition:background .15s;}
+.hbtn:hover{background:rgba(200,184,138,0.14);}
+.hbtn.active{background:rgba(200,184,138,0.18);border-color:rgba(200,184,138,0.35);color:#fff;}
+#filter-group{display:flex;gap:5px;align-items:center;}
+#filter-label{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);}
+#speed-wrap{display:flex;align-items:center;gap:5px;margin-left:auto;}
+#speed-wrap label{font-size:9px;color:var(--muted);font-family:'Share Tech Mono',monospace;}
+#speed-slider{-webkit-appearance:none;width:65px;height:3px;background:rgba(200,184,138,0.18);border-radius:2px;outline:none;}
+#speed-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--tan);cursor:pointer;}
+#speed-val{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--tan);min-width:22px;}
+
+/* MAIN */
+#main{display:flex;flex:1;overflow:hidden;}
+#map-wrap{position:relative;flex:1;overflow:hidden;background:var(--ocean);}
+#map-svg{width:100%;height:100%;display:block;cursor:grab;}
+#map-svg.dragging{cursor:grabbing;}
+
+/* TIMELINE */
+#timeline-bar{position:absolute;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--border);padding:7px 13px 9px;z-index:10;padding-bottom:max(9px,env(safe-area-inset-bottom));}
+#tl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+#tl-phase{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--tan);letter-spacing:0.06em;}
+#tl-hint{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);}
+#timeline-labels{display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:3px;}
+#timeline-slider{-webkit-appearance:none;width:100%;height:4px;background:rgba(200,184,138,0.1);border-radius:2px;outline:none;cursor:pointer;}
+#timeline-slider::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--tan);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 5px rgba(200,184,138,0.4);}
+#event-ticks{position:relative;height:12px;margin-top:3px;}
+.tick{position:absolute;transform:translateX(-50%);width:2px;height:5px;border-radius:1px;cursor:pointer;top:0;transition:height .1s;}
+.tick:hover{height:10px;}
+.tick.allied{background:#2980b9;}.tick.axis{background:#c0392b;}
+.tick.hidden-tick{display:none;}
+
+/* SIDE PANEL */
+#side-panel{width:285px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+#panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab{flex:1;padding:8px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;letter-spacing:0.06em;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;-webkit-tap-highlight-color:transparent;}
+.tab.active{color:var(--tan);border-bottom-color:var(--tan);}
+#panel-content{flex:1;overflow-y:auto;padding:11px;}
+#panel-content::-webkit-scrollbar{width:3px;}
+#panel-content::-webkit-scrollbar-thumb{background:rgba(200,184,138,0.12);border-radius:2px;}
+
+/* BATTLE DETAIL */
+.b-name{font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:0.07em;color:var(--tan);line-height:1.1;margin-bottom:2px;}
+.b-meta{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:7px;}
+.b-badge{display:inline-block;padding:2px 7px;border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:0.1em;margin-bottom:9px;}
+.ba{background:rgba(41,128,185,0.18);color:#5ba3cf;border:1px solid rgba(41,128,185,0.3);}
+.bx{background:rgba(192,57,43,0.18);color:#e05a4a;border:1px solid rgba(192,57,43,0.3);}
+.b-desc{font-size:11px;line-height:1.75;color:rgba(232,223,192,0.72);margin-bottom:10px;}
+.stat-row{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border-bottom:1px solid var(--border);font-size:10px;gap:6px;}
+.stat-label{color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:8px;flex-shrink:0;padding-top:1px;}
+.stat-val{color:var(--tan);font-weight:500;text-align:right;line-height:1.4;}
+.b-commanders{margin-top:10px;}
+.b-cmdr-title{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:0.08em;margin-bottom:5px;}
+.cmdr-row{display:flex;gap:8px;margin-bottom:4px;}
+.cmdr-side{font-size:8px;font-family:'Share Tech Mono',monospace;padding:1px 5px;border-radius:2px;flex-shrink:0;}
+.cmdr-allied{background:rgba(41,128,185,0.15);color:#5ba3cf;}
+.cmdr-axis{background:rgba(192,57,43,0.15);color:#e05a4a;}
+.cmdr-name{font-size:11px;color:var(--text);font-weight:500;}
+
+/* BATTLE LIST */
+.battle-item{padding:7px 9px;margin-bottom:4px;background:rgba(200,184,138,0.025);border:1px solid var(--border);border-radius:3px;cursor:pointer;transition:background .15s,border-color .15s;-webkit-tap-highlight-color:transparent;}
+.battle-item:hover,.battle-item.active-item{background:rgba(200,184,138,0.07);border-color:rgba(200,184,138,0.22);}
+.bi-name{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:0.05em;color:var(--tan);}
+.bi-meta{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);margin-top:1px;}
+.ri-a{float:right;font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(41,128,185,0.15);color:#5ba3cf;font-family:'Share Tech Mono',monospace;}
+.ri-x{float:right;font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(192,57,43,0.15);color:#e05a4a;font-family:'Share Tech Mono',monospace;}
+
+/* AUTO HIGHLIGHT */
+#auto-highlight{padding:8px 10px;margin-bottom:6px;border:1px solid rgba(200,184,138,0.2);border-radius:3px;background:rgba(200,184,138,0.04);display:none;}
+#auto-highlight.visible{display:block;}
+.ah-label{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--tan);letter-spacing:0.08em;margin-bottom:4px;}
+.ah-name{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--tan);cursor:pointer;line-height:1.2;}
+.ah-name:hover{color:#fff;}
+.ah-meta{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);}
+
+/* LEGEND */
+#legend{padding:9px 11px;border-top:1px solid var(--border);flex-shrink:0;}
+.legend-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:9px;color:var(--muted);}
+.ls{width:13px;height:7px;border-radius:1px;flex-shrink:0;}
+.ls.dot{border-radius:50%;width:8px;height:8px;}
+
+/* TOOLTIP */
+#map-tooltip{position:absolute;pointer-events:none;display:none;z-index:50;background:var(--panel);border:1px solid var(--border);border-radius:3px;padding:6px 9px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text);max-width:180px;line-height:1.6;}
+
+/* MAP ELEMENTS */
+.country{stroke:#141810;stroke-width:0.3;transition:fill 0.7s ease;}
+.country:hover{stroke:rgba(200,184,138,0.5);stroke-width:0.6;}
+.frontline{fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:0.7;pointer-events:none;}
+.frontline-allied{stroke:#2980b9;stroke-dasharray:4,3;}
+.frontline-axis{stroke:#c0392b;stroke-dasharray:none;}
+.battle-marker{cursor:pointer;}
+.bm-dot{transition:r .15s;}
+.battle-marker:hover .bm-dot{r:5;}
+.bm-past{opacity:0.35;}
+
+/* SIZE LEGEND */
+#size-legend{position:absolute;bottom:90px;left:12px;background:var(--panel);border:1px solid var(--border);border-radius:3px;padding:7px 10px;font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);z-index:9;}
+.sl-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+
+/* LOADING */
+#loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--ocean);z-index:100;}
+#loading-text{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);}
+#loading-bar-wrap{width:180px;height:2px;background:rgba(200,184,138,0.08);border-radius:2px;}
+#loading-bar{height:100%;width:0%;background:var(--tan);border-radius:2px;transition:width .3s;}
+
+/* MOBILE */
+@media(max-width:680px){
+  #side-panel{position:absolute;bottom:72px;left:0;right:0;width:auto;height:46vh;border-left:none;border-top:1px solid var(--border);transform:translateY(100%);transition:transform .3s ease;z-index:15;}
+  #side-panel.open{transform:translateY(0);}
+  #mpanel-btn{position:absolute;bottom:74px;right:11px;z-index:16;background:var(--paper);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;color:var(--tan);}
+  #speed-wrap,#filter-group,#filter-label{display:none;}
+  #size-legend{display:none;}
+}
+@media(min-width:681px){#mpanel-btn{display:none;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-title">⚔ 제2차 세계대전</div>
+    <div id="date-display">1939.09</div>
+    <button class="hbtn" id="play-btn">▶ 재생</button>
+    <span id="filter-label">전투 표시:</span>
+    <div id="filter-group">
+      <button class="hbtn active" data-filter="europe">유럽 전투</button>
+      <button class="hbtn active" data-filter="pacific">태평양 전투</button>
+      <button class="hbtn active" data-filter="africa">북아프리카 전투</button>
+    </div>
+    <div id="speed-wrap">
+      <label>속도</label>
+      <input type="range" id="speed-slider" min="1" max="12" value="4">
+      <span id="speed-val">4×</span>
+    </div>
+  </div>
+  <div id="main">
+    <div id="map-wrap">
+      <div id="loading">
+        <div id="loading-text">세계 지도 로딩 중...</div>
+        <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+      </div>
+      <svg id="map-svg"></svg>
+      <div id="map-tooltip"></div>
+      <div id="mpanel-btn">ℹ</div>
+      <div id="size-legend">
+        <div style="font-size:8px;color:var(--tan);margin-bottom:4px;letter-spacing:0.06em;">마커 크기 = 전투 규모</div>
+        <div class="sl-row"><svg width="16" height="16"><circle cx="8" cy="8" r="2" fill="none" stroke="#888" stroke-width="1"/></svg>소규모</div>
+        <div class="sl-row"><svg width="16" height="16"><circle cx="8" cy="8" r="3" fill="none" stroke="#888" stroke-width="1"/></svg>중규모</div>
+        <div class="sl-row"><svg width="16" height="16"><circle cx="8" cy="8" r="4.5" fill="none" stroke="#888" stroke-width="1"/></svg>대규모</div>
+      </div>
+      <div id="timeline-bar">
+        <div id="tl-top">
+          <div id="tl-phase">전황</div>
+          <div id="tl-hint">Space: 재생/정지 · ← →: 월 이동</div>
+        </div>
+        <div id="timeline-labels">
+          <span>1939</span><span>1940</span><span>1941</span>
+          <span>1942</span><span>1943</span><span>1944</span><span>1945</span>
+        </div>
+        <input type="range" id="timeline-slider" min="0" max="72" value="0" step="1">
+        <div id="event-ticks"></div>
+      </div>
+    </div>
+    <div id="side-panel">
+      <div id="panel-tabs">
+        <div class="tab active" data-tab="info">전투 정보</div>
+        <div class="tab" data-tab="list">전투 목록</div>
+      </div>
+      <div id="panel-content">
+        <div id="auto-highlight">
+          <div class="ah-label">● 이 시점의 주요 전투</div>
+          <div class="ah-name" id="ah-name">—</div>
+          <div class="ah-meta" id="ah-meta"></div>
+        </div>
+        <div id="battle-detail"></div>
+        <div id="battle-list"></div>
+        <div id="panel-placeholder" style="color:var(--muted);font-size:11px;line-height:1.9;margin-top:4px;">
+          지도의 마커를 클릭하거나<br>전투 목록을 확인하세요.<br><br>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:8px;opacity:.6;">
+          타임라인으로 전황 변화를<br>확인하세요.
+          </span>
+        </div>
+      </div>
+      <div id="legend">
+        <div class="legend-row"><div class="ls" style="background:#1e3d6e"></div>연합국 점령/통제</div>
+        <div class="legend-row"><div class="ls" style="background:#6e1e1e"></div>추축국 점령/통제</div>
+        <div class="legend-row"><div class="ls" style="background:#3d2a1a"></div>비시 프랑스 (괴뢰)</div>
+        <div class="legend-row"><div class="ls" style="background:#252b1a"></div>중립국</div>
+        <div class="legend-row"><div class="ls dot" style="background:#2980b9"></div>연합군 승전 마커</div>
+        <div class="legend-row"><div class="ls dot" style="background:#c0392b"></div>추축군 승전 마커</div>
+        <div class="legend-row"><div style="width:20px;height:2px;background:#c0392b;border-radius:1px;flex-shrink:0;"></div>추축 전선</div>
+        <div class="legend-row"><div style="width:20px;height:2px;border-top:2px dashed #2980b9;flex-shrink:0;"></div>연합 전선</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── BATTLES (scale 1-10 → marker radius 1.5–4.5 via scaleToRadius) ─────────
+const BATTLES = [
+  {id:'poland',    name:'폴란드 침공',       loc:'폴란드 바르샤바',        lat:52.2, lon:21.0, month:0,  result:'axis',   theater:'europe',  scale:8,
+   desc:'독일과 소련이 폴란드를 동서에서 협공. 35일 만에 함락되며 2차대전이 시작됐다. 전격전(Blitzkrieg) 전술이 처음 대규모로 사용됐다.',
+   allied:'폴란드·영국·프랑스', axis:'독일·소련', casualties:'20만 명 이상',
+   commanders:[{side:'allied',name:'리즈-시미그위 원수'},{side:'axis',name:'브라우히치 대장 / 보로실로프'}]},
+  {id:'finland',   name:'겨울 전쟁',          loc:'핀란드',                 lat:61.5, lon:26.0, month:3,  result:'axis',   theater:'europe',  scale:5,
+   desc:'소련의 핀란드 침공. 핀란드군의 완강한 저항으로 소련군이 막대한 피해를 입었지만 결국 핀란드는 영토를 할양했다.',
+   allied:'핀란드', axis:'소련', casualties:'35만 명 이상',
+   commanders:[{side:'allied',name:'만네르헤임 원수'},{side:'axis',name:'티모셴코 원수'}]},
+  {id:'norway',    name:'노르웨이 침공',       loc:'노르웨이 오슬로',        lat:59.9, lon:10.7, month:7,  result:'axis',   theater:'europe',  scale:5,
+   desc:'독일이 덴마크와 노르웨이를 동시에 점령. 영국·프랑스의 지원에도 2개월 만에 함락됐다.',
+   allied:'노르웨이·영국·프랑스', axis:'독일', casualties:'5,600명',
+   commanders:[{side:'allied',name:'로게 중장'},{side:'axis',name:'팔켄호르스트 대장'}]},
+  {id:'france',    name:'프랑스 함락',         loc:'프랑스',                 lat:48.8, lon:2.3,  month:9,  result:'axis',   theater:'europe',  scale:9,
+   desc:'아르덴느 돌파로 마지노선 우회. 6주 만에 프랑스 함락. 됭케르크 철수(다이나모 작전)로 영국군 33만 명 탈출. 이후 비시 프랑스 괴뢰정권 수립.',
+   allied:'프랑스·영국', axis:'독일', casualties:'36만 명',
+   commanders:[{side:'allied',name:'가믈랭 대장 / 처칠'},{side:'axis',name:'만슈타인 대장 / 룬트슈테트'}]},
+  {id:'britain',   name:'영국 본토 항공전',    loc:'영국',                   lat:51.5, lon:-1.5, month:11, result:'allied', theater:'europe',  scale:7,
+   desc:'독일 공군의 영국 제공권 장악 시도. RAF의 완강한 저항으로 독일의 영국 상륙(바다사자 작전)이 포기됐다.',
+   allied:'영국', axis:'독일', casualties:'4만 4천 명',
+   commanders:[{side:'allied',name:'다우딩 공군원수'},{side:'axis',name:'괴링 공군원수'}]},
+  {id:'barbarossa',name:'바르바로사 작전',     loc:'소련 서부전선',           lat:52.0, lon:32.0, month:21, result:'axis',   theater:'europe',  scale:10,
+   desc:'독일의 소련 침공. 역사상 최대 규모 지상 작전. 초기 독일군이 급속 진격했으나 모스크바 앞에서 저지됐다.',
+   allied:'소련', axis:'독일·루마니아·핀란드', casualties:'1,000만 명 이상',
+   commanders:[{side:'allied',name:'주코프 대장'},{side:'axis',name:'브라우히치 원수'}]},
+  {id:'tobruk',    name:'토브루크 공방전',     loc:'리비아 토브루크',         lat:32.1, lon:23.0, month:20, result:'axis',   theater:'africa',  scale:5,
+   desc:'북아프리카의 요충지 토브루크를 둘러싼 공방전. 롬멜의 아프리카 군단이 영국 방어선을 돌파했다.',
+   allied:'영국·호주', axis:'독일·이탈리아', casualties:'3만 3천 명',
+   commanders:[{side:'allied',name:'리치 중장'},{side:'axis',name:'롬멜 원수'}]},
+  {id:'moscow',    name:'모스크바 전투',        loc:'소련 모스크바',           lat:55.7, lon:37.6, month:27, result:'allied', theater:'europe',  scale:8,
+   desc:'소련 침공 이후 최초의 대규모 격퇴. 소련군이 혹한과 반격으로 독일군을 저지했다.',
+   allied:'소련', axis:'독일', casualties:'100만 명 이상',
+   commanders:[{side:'allied',name:'주코프 대장'},{side:'axis',name:'보크 원수'}]},
+  {id:'pearlharbor',name:'진주만 공습',        loc:'하와이 진주만',           lat:21.3, lon:-157.9,month:27, result:'axis',  theater:'pacific', scale:7,
+   desc:'일본 해군의 기습으로 미 태평양 함대에 막대한 피해. 미국의 2차대전 참전 계기가 됐다.',
+   allied:'미국', axis:'일본', casualties:'2,403명',
+   commanders:[{side:'allied',name:'킴멜 제독'},{side:'axis',name:'나구모 주이치 중장'}]},
+  {id:'coral',     name:'산호해 해전',          loc:'산호해',                 lat:-15.0,lon:154.0,month:32, result:'allied', theater:'pacific', scale:5,
+   desc:'항공모함이 직접 교전한 최초의 해전. 일본의 포트모르즈비 상륙을 저지했다.',
+   allied:'미국·호주', axis:'일본', casualties:'2,200명',
+   commanders:[{side:'allied',name:'플레처 제독'},{side:'axis',name:'이노우에 시게요시 중장'}]},
+  {id:'midway',    name:'미드웨이 해전',         loc:'미드웨이 섬',            lat:28.2, lon:-177.4,month:33, result:'allied', theater:'pacific', scale:8,
+   desc:'태평양 전쟁의 분수령. 미군이 일본 항공모함 4척을 격침, 태평양 주도권을 장악했다.',
+   allied:'미국', axis:'일본', casualties:'3,400명',
+   commanders:[{side:'allied',name:'니미츠 제독 / 스프루언스'},{side:'axis',name:'야마모토 이소로쿠 원수'}]},
+  {id:'elalmein',  name:'엘알라메인 전투',       loc:'이집트 엘알라메인',      lat:30.8, lon:28.9, month:37, result:'allied', theater:'africa',  scale:7,
+   desc:'북아프리카 전선의 전환점. 롬멜의 아프리카 군단이 몽고메리의 영국 제8군에 격퇴됐다.',
+   allied:'영국·영연방', axis:'독일·이탈리아', casualties:'5만 명',
+   commanders:[{side:'allied',name:'몽고메리 장군'},{side:'axis',name:'롬멜 원수'}]},
+  {id:'stalingrad',name:'스탈린그라드 전투',    loc:'소련 스탈린그라드',      lat:48.7, lon:44.5, month:36, result:'allied', theater:'europe',  scale:10,
+   desc:'2차대전 최대 지상전. 독일 6군이 포위·항복하며 동부전선의 결정적 전환점이 됐다. 사상자 200만 명 이상.',
+   allied:'소련', axis:'독일', casualties:'200만 명 이상',
+   commanders:[{side:'allied',name:'추이코프 장군'},{side:'axis',name:'파울루스 원수'}]},
+  {id:'guadalcanal',name:'과달카날 전투',       loc:'솔로몬 제도',            lat:-9.6, lon:160.2,month:36, result:'allied', theater:'pacific', scale:7,
+   desc:'태평양 연합군의 첫 대규모 반격. 6개월간 격전 끝에 일본군을 축출, 반격의 발판이 됐다.',
+   allied:'미국·호주', axis:'일본', casualties:'7만 명',
+   commanders:[{side:'allied',name:'밴더그리프트 소장'},{side:'axis',name:'햐쿠타케 하루키치 중장'}]},
+  {id:'kursk',     name:'쿠르스크 전투',         loc:'소련 쿠르스크',          lat:51.7, lon:36.2, month:46, result:'allied', theater:'europe',  scale:10,
+   desc:'역사상 최대 전차전. 독일의 치타델 작전이 격퇴되며 동부전선 주도권이 완전히 소련으로 넘어갔다.',
+   allied:'소련', axis:'독일', casualties:'85만 명',
+   commanders:[{side:'allied',name:'로코솝스키 / 바투틴'},{side:'axis',name:'만슈타인 / 클루게'}]},
+  {id:'italy',     name:'이탈리아 상륙',          loc:'이탈리아 시칠리아',      lat:37.5, lon:14.0, month:46, result:'allied', theater:'europe',  scale:6,
+   desc:'허스키 작전으로 시칠리아 상륙. 무솔리니 실각, 이탈리아 항복. 독일이 이탈리아를 점령했다.',
+   allied:'미국·영국', axis:'독일·이탈리아', casualties:'3만 명',
+   commanders:[{side:'allied',name:'아이젠하워 대장'},{side:'axis',name:'케셀링 원수'}]},
+  {id:'normandy',  name:'노르망디 상륙작전',      loc:'프랑스 노르망디',        lat:49.3, lon:-0.8, month:57, result:'allied', theater:'europe',  scale:10,
+   desc:'오버로드 작전. 역사상 최대 규모 상륙작전으로 서부 제2전선이 열렸다. D-Day 당일 15만 6천 명 상륙.',
+   allied:'미국·영국·캐나다', axis:'독일', casualties:'22만 명',
+   commanders:[{side:'allied',name:'아이젠하워 원수'},{side:'axis',name:'롬멜 원수'}]},
+  {id:'leyte',     name:'레이테 만 해전',         loc:'필리핀 레이테',          lat:11.0, lon:125.0,month:61, result:'allied', theater:'pacific', scale:8,
+   desc:'역사상 최대 규모 해전. 일본 해군이 궤멸되며 가미카제 특공대가 처음 대규모로 등장했다.',
+   allied:'미국', axis:'일본', casualties:'1만 5천 명',
+   commanders:[{side:'allied',name:'핼시 제독 / 킨케이드'},{side:'axis',name:'도요다 소에무 제독'}]},
+  {id:'bulge',     name:'벌지 전투',              loc:'벨기에·룩셈부르크',     lat:50.1, lon:5.8,  month:63, result:'allied', theater:'europe',  scale:8,
+   desc:'독일의 마지막 대규모 서부전선 반격. 초기 돌파에 성공했으나 연합군이 반격해 독일 패망을 앞당겼다.',
+   allied:'미국·영국', axis:'독일', casualties:'18만 6천 명',
+   commanders:[{side:'allied',name:'아이젠하워 / 패튼'},{side:'axis',name:'룬트슈테트 / 만토이펠'}]},
+  {id:'iwojima',   name:'이오지마 전투',           loc:'이오지마',              lat:24.8, lon:141.3,month:65, result:'allied', theater:'pacific', scale:8,
+   desc:'"수리바치산 성조기 게양"으로 유명. 일본군 2만 명 중 생존자 216명. 태평양 전쟁 최격전.',
+   allied:'미국', axis:'일본', casualties:'2만 8천 명',
+   commanders:[{side:'allied',name:'스미스 중장'},{side:'axis',name:'쿠리바야시 다다미치 중장'}]},
+  {id:'berlin',    name:'베를린 전투',             loc:'독일 베를린',           lat:52.5, lon:13.4, month:67, result:'allied', theater:'europe',  scale:9,
+   desc:'소련군이 베를린을 포위·공략. 히틀러 자살, 독일 무조건 항복으로 유럽 전쟁이 종전됐다.',
+   allied:'소련', axis:'독일', casualties:'30만 명 이상',
+   commanders:[{side:'allied',name:'주코프 원수'},{side:'axis',name:'바이들링 장군'}]},
+  {id:'okinawa',   name:'오키나와 전투',            loc:'오키나와',             lat:26.3, lon:127.8,month:67, result:'allied', theater:'pacific', scale:9,
+   desc:'태평양 최대 상륙전. 민간인 희생이 극심했으며 일본 본토 상륙을 위한 발판이 됐다.',
+   allied:'미국', axis:'일본', casualties:'20만 명 이상',
+   commanders:[{side:'allied',name:'버크너 중장'},{side:'axis',name:'우시지마 미쓰루 중장'}]},
+  {id:'atomic',    name:'원자폭탄 투하',            loc:'일본 히로시마·나가사키', lat:34.4, lon:132.5,month:71, result:'allied', theater:'pacific', scale:9,
+   desc:'히로시마(8/6)·나가사키(8/9)에 원폭 투하. 일본이 무조건 항복을 선언하며 2차대전이 완전히 종전됐다.',
+   allied:'미국', axis:'일본', casualties:'21만 명 이상',
+   commanders:[{side:'allied',name:'스파츠 / 티베츠'},{side:'axis',name:'도고 시게노리 외상'}]},
+];
+
+// ── COUNTRY CONTROL ───────────────────────────────────────────────────────
+const CONTROL = {
+  'AL':[{f:19,t:72,s:'axis'}],
+  'AT':[{f:0,t:72,s:'axis'}],
+  'BE':[{f:9,t:57,s:'axis'},{f:58,t:72,s:'allied'}],
+  'BG':[{f:0,t:60,s:'axis'},{f:61,t:72,s:'allied'}],
+  'CN':[{f:0,t:72,s:'allied'}],
+  'CZ':[{f:0,t:72,s:'axis'}],
+  'DE':[{f:0,t:67,s:'axis'}],
+  'DK':[{f:7,t:72,s:'axis'}],
+  'EG':[{f:0,t:72,s:'allied'}],
+  'ET':[{f:0,t:72,s:'axis'}],
+  'FI':[{f:3,t:63,s:'axis'},{f:64,t:72,s:'neutral'}],
+  'FR':[{f:0,t:8,s:'allied'},{f:9,t:9,s:'vichy'},{f:10,t:56,s:'axis'},{f:57,t:72,s:'allied'}],
+  'GB':[{f:0,t:72,s:'allied'}],
+  'GR':[{f:14,t:72,s:'axis'}],
+  'HR':[{f:19,t:72,s:'axis'}],
+  'HU':[{f:0,t:67,s:'axis'}],
+  'ID':[{f:27,t:65,s:'axis'}],
+  'IE':[{f:0,t:72,s:'neutral'}],
+  'IN':[{f:0,t:72,s:'allied'}],
+  'IT':[{f:0,t:47,s:'axis'},{f:48,t:72,s:'allied'}],
+  'JP':[{f:0,t:71,s:'axis'}],
+  'KR':[{f:0,t:71,s:'axis'}],
+  'LU':[{f:9,t:57,s:'axis'},{f:58,t:72,s:'allied'}],
+  'LY':[{f:0,t:40,s:'axis'},{f:41,t:72,s:'allied'}],
+  'MA':[{f:0,t:72,s:'allied'}],
+  'MY':[{f:27,t:65,s:'axis'}],
+  'NL':[{f:8,t:57,s:'axis'},{f:58,t:72,s:'allied'}],
+  'NO':[{f:7,t:72,s:'axis'}],
+  'PH':[{f:27,t:61,s:'axis'},{f:62,t:72,s:'allied'}],
+  'PL':[{f:1,t:72,s:'axis'}],
+  'PT':[{f:0,t:72,s:'neutral'}],
+  'RO':[{f:0,t:60,s:'axis'},{f:61,t:72,s:'allied'}],
+  'RS':[{f:19,t:72,s:'axis'}],
+  'RU':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+  'SE':[{f:0,t:72,s:'neutral'}],
+  'SG':[{f:27,t:65,s:'axis'}],
+  'SK':[{f:0,t:72,s:'axis'}],
+  'ES':[{f:0,t:72,s:'neutral'}],
+  'CH':[{f:0,t:72,s:'neutral'}],
+  'TH':[{f:27,t:71,s:'axis'}],
+  'TN':[{f:38,t:44,s:'axis'},{f:45,t:72,s:'allied'}],
+  'TR':[{f:0,t:72,s:'neutral'}],
+  'UA':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+  'US':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+  'VN':[{f:9,t:72,s:'axis'}],
+  'AU':[{f:0,t:72,s:'allied'}],
+  'NZ':[{f:0,t:72,s:'allied'}],
+  'ZA':[{f:0,t:72,s:'allied'}],
+  'CA':[{f:0,t:72,s:'allied'}],
+  'BA':[{f:19,t:72,s:'axis'}],
+  'BY':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+  'LT':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+  'LV':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+  'EE':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+  'MD':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
+};
+
+const STATE_COLORS = { allied:'#1e3d6e', axis:'#6e1e1e', neutral:'#252b1a', vichy:'#3d2a1a' };
+const DEFAULT_COLOR = '#1a1e12';
+
+// ── FRONTLINES (approximate polylines per month range) ────────────────────
+// Each entry: {from, to, theater, type:'allied'|'axis', points:[[lon,lat],...]}
+const FRONTLINES = [
+  // Eastern Front progression
+  {from:21,to:26,theater:'europe',type:'axis',   points:[[23,54],[29,52],[31,48],[32,45],[36,47],[38,48]]},
+  {from:27,to:32,theater:'europe',type:'axis',   points:[[28,58],[33,56],[36,53],[38,49],[37,46],[40,45]]},
+  {from:33,to:35,theater:'europe',type:'axis',   points:[[30,60],[35,57],[38,54],[40,50],[42,47],[44,45]]},
+  {from:36,to:39,theater:'europe',type:'axis',   points:[[30,60],[36,58],[40,55],[42,51],[44,48],[46,46]]},
+  {from:40,to:46,theater:'europe',type:'axis',   points:[[29,60],[34,58],[38,56],[40,52],[42,48],[44,47]]},
+  {from:47,to:55,theater:'europe',type:'allied', points:[[26,58],[30,56],[34,52],[37,49],[40,46],[43,45]]},
+  {from:56,to:62,theater:'europe',type:'allied', points:[[22,56],[25,53],[28,50],[32,47],[35,45],[38,44]]},
+  {from:63,to:67,theater:'europe',type:'allied', points:[[18,54],[22,51],[26,48],[30,45],[33,44]]},
+
+  // North Africa
+  {from:20,to:36,theater:'africa', type:'axis',  points:[[13,32],[20,31],[25,31],[28,30],[30,30]]},
+  {from:37,to:44,theater:'africa', type:'allied',points:[[10,33],[15,32],[20,31],[25,31],[28,30]]},
+
+  // Western Front after D-Day
+  {from:57,to:60,theater:'europe',type:'allied', points:[[-4,49],[-1,49],[2,49],[5,50],[6,51]]},
+  {from:61,to:64,theater:'europe',type:'allied', points:[[-2,49],[2,49],[5,50],[6,51],[7,51]]},
+  {from:65,to:67,theater:'europe',type:'allied', points:[[6,50],[7,51],[8,51],[10,52],[12,52]]},
+];
+
+// ── PHASES ────────────────────────────────────────────────────────────────
+const PHASES = [
+  {f:0, t:20, label:'추축국 팽창기 (1939–41)'},
+  {f:21,t:35, label:'전선 확대기 (1941–42)'},
+  {f:36,t:55, label:'전환점 (1942–43)'},
+  {f:56,t:66, label:'연합군 반격기 (1944–45)'},
+  {f:67,t:72, label:'종전 (1945)'},
+];
+function getPhase(m){ for(const p of PHASES) if(m>=p.f&&m<=p.t) return p.label; return ''; }
+
+const NUM_TO_A2 = {"004":"AF","008":"AL","012":"DZ","024":"AO","032":"AR","036":"AU","040":"AT","050":"BD","056":"BE","068":"BO","076":"BR","100":"BG","104":"MM","116":"KH","120":"CM","124":"CA","152":"CL","156":"CN","170":"CO","180":"CD","188":"CR","191":"HR","192":"CU","203":"CZ","208":"DK","214":"DO","218":"EC","818":"EG","222":"SV","231":"ET","246":"FI","250":"FR","276":"DE","288":"GH","300":"GR","320":"GT","332":"HT","340":"HN","348":"HU","356":"IN","360":"ID","364":"IR","368":"IQ","372":"IE","376":"IL","380":"IT","388":"JM","392":"JP","400":"JO","398":"KZ","404":"KE","410":"KR","408":"KP","414":"KW","418":"LA","422":"LB","430":"LR","434":"LY","484":"MX","504":"MA","508":"MZ","516":"NA","524":"NP","528":"NL","554":"NZ","558":"NI","566":"NG","578":"NO","586":"PK","591":"PA","598":"PG","600":"PY","604":"PE","608":"PH","616":"PL","620":"PT","642":"RO","643":"RU","682":"SA","686":"SN","724":"ES","752":"SE","756":"CH","760":"SY","764":"TH","788":"TN","792":"TR","800":"UG","804":"UA","784":"AE","826":"GB","840":"US","858":"UY","862":"VE","704":"VN","894":"ZM","716":"ZW","070":"BA","807":"MK","499":"ME","688":"RS","705":"SI","703":"SK","112":"BY","233":"EE","428":"LV","440":"LT","498":"MD"};
+
+const A2_NAMES = {"AF":"아프가니스탄","AL":"알바니아","DZ":"알제리","AO":"앙골라","AR":"아르헨티나","AU":"호주","AT":"오스트리아","BD":"방글라데시","BE":"벨기에","BO":"볼리비아","BR":"브라질","BG":"불가리아","MM":"미얀마","KH":"캄보디아","CM":"카메룬","CA":"캐나다","CL":"칠레","CN":"중국","CO":"콜롬비아","CD":"콩고","CR":"코스타리카","HR":"크로아티아","CU":"쿠바","CZ":"체코","DK":"덴마크","DO":"도미니카","EC":"에콰도르","EG":"이집트","SV":"엘살바도르","ET":"에티오피아","FI":"핀란드","FR":"프랑스","DE":"독일","GH":"가나","GR":"그리스","GT":"과테말라","HT":"아이티","HN":"온두라스","HU":"헝가리","IN":"인도","ID":"인도네시아","IR":"이란","IQ":"이라크","IE":"아일랜드","IL":"이스라엘","IT":"이탈리아","JM":"자메이카","JP":"일본","JO":"요르단","KZ":"카자흐스탄","KE":"케냐","KR":"한국","KP":"북한","KW":"쿠웨이트","LA":"라오스","LB":"레바논","LR":"라이베리아","LY":"리비아","MX":"멕시코","MA":"모로코","MZ":"모잠비크","NA":"나미비아","NP":"네팔","NL":"네덜란드","NZ":"뉴질랜드","NI":"니카라과","NG":"나이지리아","NO":"노르웨이","PK":"파키스탄","PA":"파나마","PG":"파푸아뉴기니","PY":"파라과이","PE":"페루","PH":"필리핀","PL":"폴란드","PT":"포르투갈","RO":"루마니아","RU":"소련/러시아","SA":"사우디아라비아","SN":"세네갈","ES":"스페인","SE":"스웨덴","CH":"스위스","SY":"시리아","TH":"태국","TN":"튀니지","TR":"터키","UG":"우간다","UA":"우크라이나","AE":"UAE","GB":"영국","US":"미국","UY":"우루과이","VE":"베네수엘라","VN":"베트남","ZM":"잠비아","ZW":"짐바브웨","BA":"보스니아","MK":"마케도니아","ME":"몬테네그로","RS":"세르비아","SI":"슬로베니아","SK":"슬로바키아","BY":"벨라루스","EE":"에스토니아","LV":"라트비아","LT":"리투아니아","MD":"몰도바"};
+
+function getState(iso, m) {
+  const arr = CONTROL[iso];
+  if (!arr) return null;
+  for (const s of arr) if (m >= s.f && m <= s.t) return s.s;
+  return null;
+}
+function monthToLabel(m) {
+  const d = new Date(1939, 8 + m, 1);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function scaleToRadius(s){ return 1.5 + (s/10)*3; }
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let currentMonth = 0, playing = false, speed = 4, playInterval = null;
+let selectedBattle = null, activeTab = 'info';
+let activeFilters = new Set(['europe','pacific','africa']);
+
+const svg = d3.select('#map-svg');
+const mapWrap = document.getElementById('map-wrap');
+let W = mapWrap.clientWidth, H = mapWrap.clientHeight;
+const projection = d3.geoNaturalEarth1().rotate([-15, 0]).scale(W/6.5).translate([W/2, H/2]);
+const pathGen = d3.geoPath().projection(projection);
+
+const zoomBeh = d3.zoom().scaleExtent([1,10]).on('zoom', ev => {
+  g.attr('transform', ev.transform);
+});
+svg.call(zoomBeh);
+svg.on('dblclick.zoom', null);
+svg.on('dblclick', () => svg.transition().duration(400).call(zoomBeh.transform, d3.zoomIdentity));
+
+const g = svg.append('g');
+g.append('path').datum({type:'Sphere'}).attr('fill','#0b1520').attr('d', pathGen);
+g.append('path').datum(d3.geoGraticule()()).attr('fill','none').attr('stroke','rgba(255,255,255,0.035)').attr('stroke-width','0.4').attr('d', pathGen);
+
+const countryGroup   = g.append('g').attr('id','countries');
+const frontlineGroup = g.append('g').attr('id','frontlines');
+const markerGroup    = g.append('g').attr('id','markers');
+
+// ── AUTO RECENTRE ─────────────────────────────────────────────────────────
+// 0–26:  유럽 중심 (-15)
+// 27–50: 균형 (-80, 양쪽 모두 보임)
+// 51–70: 유럽 중심 (-15)
+// 71–72: 태평양 중심 (-150)
+function getRotationForMonth(m) {
+  if (m <= 26)  return -15;
+  if (m <= 50)  return -80;
+  if (m <= 70)  return -15;
+  return -150;
+}
+
+let recentreRaf = null;
+let lastRotationTarget = null; // null = not yet set, always run on first call
+
+function recentreMap(month) {
+  // Fix 1: skip rotation entirely when a battle is selected (zoom is active)
+  if (selectedBattle) return;
+
+  const target = getRotationForMonth(month);
+  if (target === lastRotationTarget) return;
+  lastRotationTarget = target;
+
+  // Fix 3: if cancelling an in-progress animation, restore fill transition first
+  if (recentreRaf) {
+    cancelAnimationFrame(recentreRaf);
+    recentreRaf = null;
+    countryGroup.selectAll('path').style('transition', 'fill 0.7s ease');
+  }
+
+  const startRot = projection.rotate()[0];
+  let delta = target - startRot;
+  if (delta > 180)  delta -= 360;
+  if (delta < -180) delta += 360;
+  if (Math.abs(delta) < 1) return;
+
+  const dur = 900;
+  const t0 = performance.now();
+
+  svg.transition().duration(300).call(zoomBeh.transform, d3.zoomIdentity);
+
+  function step(now) {
+    const t = Math.min((now - t0) / dur, 1);
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    projection.rotate([startRot + delta * ease, 0]);
+    countryGroup.selectAll('path').style('transition', 'none');
+    g.selectAll('path').attr('d', pathGen);
+    const lineGen = d3.line().x(d => projection(d)[0]).y(d => projection(d)[1]).curve(d3.curveCatmullRom.alpha(0.5));
+    frontlineGroup.selectAll('path.frontline').each(function() {
+      const fl = d3.select(this).datum();
+      if (fl && fl.points) d3.select(this).attr('d', lineGen(fl.points.map(p => [p[0], p[1]])));
+    });
+    markerGroup.selectAll('g.battle-marker').attr('transform', d => {
+      const p = projection([d.lon, d.lat]);
+      return p ? `translate(${p[0]},${p[1]})` : 'translate(-9999,-9999)';
+    });
+    if (t < 1) {
+      recentreRaf = requestAnimationFrame(step);
+    } else {
+      recentreRaf = null;
+      countryGroup.selectAll('path').style('transition', 'fill 0.7s ease');
+    }
+  }
+  recentreRaf = requestAnimationFrame(step);
+}
+
+// ── LOAD MAP ──────────────────────────────────────────────────────────────
+async function loadMap() {
+  document.getElementById('loading-bar').style.width = '20%';
+  const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  document.getElementById('loading-bar').style.width = '60%';
+  const world = await res.json();
+  document.getElementById('loading-bar').style.width = '80%';
+
+  const features = topojson.feature(world, world.objects.countries).features;
+
+  countryGroup.selectAll('path')
+    .data(features).join('path')
+    .attr('class','country').attr('d', pathGen)
+    .attr('fill', DEFAULT_COLOR)
+    .attr('data-iso', d => NUM_TO_A2[String(d.id).padStart(3,'0')] || '')
+    .on('mouseenter', function(ev, d) {
+      const iso = this.getAttribute('data-iso');
+      const st = getState(iso, currentMonth);
+      if (!st) return;
+      const label = {allied:'연합국',axis:'추축국',neutral:'중립국',vichy:'비시 프랑스'}[st];
+      const cname = A2_NAMES[iso] || iso;
+      showTooltip(ev, `<strong>${cname}</strong> · ${label}`);
+    })
+    .on('mouseleave', hideTooltip);
+
+  buildFrontlines();
+  buildMarkers();
+  buildEventTicks();
+  buildBattleList();
+
+  document.getElementById('loading-bar').style.width = '100%';
+  setTimeout(() => document.getElementById('loading').style.display='none', 350);
+  updateMap();
+}
+
+// ── FRONTLINES ────────────────────────────────────────────────────────────
+function buildFrontlines() {
+  frontlineGroup.selectAll('*').remove();
+  const lineGen = d3.line().x(d => projection(d)[0]).y(d => projection(d)[1]).curve(d3.curveCatmullRom.alpha(0.5));
+
+  for (const fl of FRONTLINES) {
+    frontlineGroup.append('path')
+      .datum(fl)                         // keep datum so recentreMap can re-project
+      .attr('class', `frontline frontline-${fl.type}`)
+      .attr('d', lineGen(fl.points.map(p => [p[0], p[1]])))
+      .attr('data-from', fl.from)
+      .attr('data-to',   fl.to)
+      .attr('data-theater', fl.theater)
+      .style('display','none');
+  }
+}
+
+function updateFrontlines() {
+  frontlineGroup.selectAll('path.frontline').each(function() {
+    const from = +this.getAttribute('data-from');
+    const to   = +this.getAttribute('data-to');
+    const theater = this.getAttribute('data-theater');
+    const inTime = currentMonth >= from && currentMonth <= to;
+    const inFilter = activeFilters.has(theater);
+    d3.select(this).style('display', inTime && inFilter ? 'block' : 'none');
+  });
+}
+
+// ── MARKERS ───────────────────────────────────────────────────────────────
+function buildMarkers() {
+  const groups = markerGroup.selectAll('g.battle-marker')
+    .data(BATTLES).join('g')
+    .attr('class','battle-marker')
+    .attr('transform', d => { const p = projection([d.lon,d.lat]); return p?`translate(${p[0]},${p[1]})`:'translate(-9999,-9999)'; })
+    .style('display','none')
+    .on('click', (e,d) => { e.stopPropagation(); selectBattle(d); })
+    .on('mouseenter', (e,d) => showTooltip(e, `<strong style="color:${d.result==='allied'?'#5ba3cf':'#e05a4a'}">${d.name}</strong><br>${monthToLabel(d.month)} · ${d.loc}`))
+    .on('mouseleave', hideTooltip)
+    .on('touchstart', function(e,d){ e.preventDefault(); selectBattle(d); },{passive:false});
+
+  groups.append('circle').attr('class','bm-pulse').attr('r',0).attr('fill','none')
+    .attr('stroke', d => d.result==='allied'?'#2980b9':'#c0392b').attr('stroke-width',1).attr('opacity',0);
+  groups.append('circle').attr('class','bm-dot')
+    .attr('r', d => scaleToRadius(d.scale))
+    .attr('fill', d => d.result==='allied'?'#2980b9':'#c0392b')
+    .attr('stroke','#fff').attr('stroke-width',1.2);
+
+  animatePulse();
+}
+
+function animatePulse() {
+  // Use a simple interval instead of recursive d3 transitions to avoid timer buildup
+  setInterval(() => {
+    markerGroup.selectAll('circle.bm-pulse')
+      .filter(function(){ return d3.select(this.parentNode).style('display') !== 'none'; })
+      .attr('r', d => scaleToRadius(d.scale))
+      .attr('opacity', 0.65)
+      .transition().duration(1600).ease(d3.easeQuadOut)
+      .attr('r', d => scaleToRadius(d.scale) * 2)
+      .attr('opacity', 0);
+  }, 1800);
+}
+
+function updateMarkers() {
+  markerGroup.selectAll('g.battle-marker').each(function(d) {
+    const diff = currentMonth - d.month;
+    const inFilter = activeFilters.has(d.theater);
+    let show = false, past = false;
+    if (inFilter && diff >= 0 && diff <= 3) { show = true; }          // recent: full
+    else if (inFilter && diff > 3 && diff <= 24) { show = true; past = true; } // old: faded
+    d3.select(this).style('display', show ? 'block' : 'none');
+    d3.select(this).classed('bm-past', past);
+    d3.select(this).select('circle.bm-dot').attr('opacity', past ? 0.28 : 1);
+    d3.select(this).select('circle.bm-pulse').style('display', past ? 'none' : 'block');
+  });
+}
+
+// ── AUTO HIGHLIGHT ────────────────────────────────────────────────────────
+function updateAutoHighlight() {
+  if (activeTab !== 'info' || selectedBattle) return;
+  // find nearest battle within ±2 months
+  let nearest = null, minDiff = 999;
+  for (const b of BATTLES) {
+    if (!activeFilters.has(b.theater)) continue;
+    const diff = Math.abs(b.month - currentMonth);
+    if (diff < minDiff) { minDiff = diff; nearest = b; }
+  }
+  const el = document.getElementById('auto-highlight');
+  if (nearest && minDiff <= 3) {
+    el.classList.add('visible');
+    document.getElementById('ah-name').textContent = nearest.name;
+    document.getElementById('ah-meta').textContent = `${monthToLabel(nearest.month)} · ${nearest.loc}`;
+    document.getElementById('ah-name').onclick = () => selectBattle(nearest);
+  } else {
+    el.classList.remove('visible');
+  }
+}
+
+// ── MAP UPDATE ────────────────────────────────────────────────────────────
+function updateMap() {
+  countryGroup.selectAll('path').attr('fill', function() {
+    const iso = this.getAttribute('data-iso');
+    const st = getState(iso, currentMonth);
+    return st ? (STATE_COLORS[st] || DEFAULT_COLOR) : DEFAULT_COLOR;
+  });
+  updateFrontlines();
+  updateMarkers();
+  updateAutoHighlight();
+  document.getElementById('date-display').textContent = monthToLabel(currentMonth);
+  document.getElementById('tl-phase').textContent = getPhase(currentMonth);
+  document.getElementById('timeline-slider').value = currentMonth;
+  recentreMap(currentMonth);
+}
+
+// ── BATTLE DETAIL ─────────────────────────────────────────────────────────
+function selectBattle(b) {
+  selectedBattle = b;
+  document.getElementById('panel-placeholder').style.display = 'none';
+  document.getElementById('auto-highlight').classList.remove('visible');
+
+  const cmdrHtml = b.commanders.map(c =>
+    `<div class="cmdr-row"><span class="cmdr-side cmdr-${c.side}">${c.side==='allied'?'연합':'추축'}</span><span class="cmdr-name">${c.name}</span></div>`
+  ).join('');
+
+  document.getElementById('battle-detail').innerHTML = `
+    <div class="b-name">${b.name}</div>
+    <div class="b-meta">${monthToLabel(b.month)} · ${b.loc}</div>
+    <div class="b-badge ${b.result==='allied'?'ba':'bx'}">${b.result==='allied'?'연합군 승리':'추축군 승리'}</div>
+    <div class="b-desc">${b.desc}</div>
+    <div class="stat-row"><span class="stat-label">연합군</span><span class="stat-val">${b.allied}</span></div>
+    <div class="stat-row"><span class="stat-label">추축군</span><span class="stat-val">${b.axis}</span></div>
+    <div class="stat-row"><span class="stat-label">총 사상자</span><span class="stat-val">${b.casualties}</span></div>
+    <div class="b-commanders"><div class="b-cmdr-title">주요 지휘관</div>${cmdrHtml}</div>
+  `;
+  // Fix 5: let setTab manage all display states cleanly
+  setTab('info');
+
+  // Zoom to battle — fixed scale 3 regardless of current zoom
+  const p = projection([b.lon, b.lat]);
+  if (p) {
+    svg.transition().duration(650).call(zoomBeh.transform,
+      d3.zoomIdentity.translate(W/2 - 3*p[0], H/2 - 3*p[1]).scale(3));
+  }
+  document.getElementById('side-panel').classList.add('open');
+  // highlight active item in list
+  document.querySelectorAll('.battle-item').forEach(el => el.classList.toggle('active-item', el.dataset.id === b.id));
+}
+
+// ── BATTLE LIST ───────────────────────────────────────────────────────────
+function buildBattleList() {
+  const el = document.getElementById('battle-list');
+  const sorted = [...BATTLES].sort((a,b) => a.month - b.month);
+  for (const b of sorted) {
+    const item = document.createElement('div');
+    item.className = 'battle-item'; item.dataset.id = b.id;
+    item.innerHTML = `<span class="ri-${b.result==='allied'?'a':'x'}">${b.result==='allied'?'연합군 승':'추축군 승'}</span><div class="bi-name">${b.name}</div><div class="bi-meta">${monthToLabel(b.month)} · ${b.loc}</div>`;
+    item.addEventListener('click', () => { selectBattle(b); currentMonth=b.month; updateMap(); });
+    el.appendChild(item);
+  }
+}
+
+// ── EVENT TICKS ───────────────────────────────────────────────────────────
+function buildEventTicks() {
+  const el = document.getElementById('event-ticks');
+  const sorted = [...BATTLES].sort((a,b) => a.month - b.month);
+  for (const b of sorted) {
+    const tick = document.createElement('div');
+    tick.className = `tick ${b.result}`;
+    tick.dataset.id = b.id;
+    tick.dataset.theater = b.theater;
+    tick.style.left = (b.month/72*100)+'%';
+    tick.title = b.name;
+    tick.addEventListener('click', () => { currentMonth=b.month; document.getElementById('timeline-slider').value=currentMonth; updateMap(); selectBattle(b); });
+    el.appendChild(tick);
+  }
+  filterTicks();
+}
+function filterTicks() {
+  document.querySelectorAll('.tick').forEach(t => {
+    t.classList.toggle('hidden-tick', !activeFilters.has(t.dataset.theater));
+  });
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+  const det = document.getElementById('battle-detail');
+  const lst = document.getElementById('battle-list');
+  const ph  = document.getElementById('panel-placeholder');
+  if (tab==='info') {
+    det.style.display = selectedBattle ? 'block' : 'none';
+    lst.style.display = 'none';
+    ph.style.display  = selectedBattle ? 'none' : 'block';
+    updateAutoHighlight();
+  } else {
+    det.style.display = 'none';
+    lst.style.display = 'block';
+    ph.style.display  = 'none';
+    document.getElementById('auto-highlight').classList.remove('visible');
+  }
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
+
+// ── TOOLTIP ───────────────────────────────────────────────────────────────
+const tooltipEl = document.getElementById('map-tooltip');
+function showTooltip(ev, html) {
+  const r = mapWrap.getBoundingClientRect();
+  tooltipEl.innerHTML = html; tooltipEl.style.display = 'block';
+  tooltipEl.style.left = (ev.clientX - r.left + 13)+'px';
+  tooltipEl.style.top  = (ev.clientY - r.top - 10)+'px';
+}
+function hideTooltip() { tooltipEl.style.display = 'none'; }
+svg.on('mousemove', function(ev) {
+  if (tooltipEl.style.display==='block') {
+    const r = mapWrap.getBoundingClientRect();
+    tooltipEl.style.left=(ev.clientX-r.left+13)+'px';
+    tooltipEl.style.top=(ev.clientY-r.top-10)+'px';
+  }
+});
+
+// ── PLAYBACK ──────────────────────────────────────────────────────────────
+const playBtn = document.getElementById('play-btn');
+function startPlay() {
+  playInterval = setInterval(() => {
+    currentMonth = Math.min(72, currentMonth+1);
+    updateMap();
+    if (currentMonth>=72) { stopPlay(); }
+  }, 1000/speed);
+}
+function stopPlay() {
+  clearInterval(playInterval); playInterval=null;
+  playing=false; playBtn.textContent='▶ 재생';
+}
+function togglePlay() {
+  if (playing) { stopPlay(); return; }
+  playing=true; playBtn.textContent='⏸ 정지';
+  if (currentMonth>=72) { currentMonth=0; updateMap(); }
+  startPlay();
+}
+playBtn.addEventListener('click', togglePlay);
+
+document.getElementById('timeline-slider').addEventListener('input', function() {
+  currentMonth = parseInt(this.value);
+  selectedBattle = null;
+  document.getElementById('battle-detail').style.display = 'none';
+  document.getElementById('auto-highlight').classList.remove('visible');
+  document.getElementById('panel-placeholder').style.display = 'block';
+  document.querySelectorAll('.battle-item').forEach(el => el.classList.remove('active-item'));
+  updateMap();
+  if (playing) { clearInterval(playInterval); startPlay(); }
+});
+document.getElementById('speed-slider').addEventListener('input', function() {
+  speed=parseInt(this.value);
+  document.getElementById('speed-val').textContent=speed+'×';
+  if (playing) { clearInterval(playInterval); startPlay(); }
+});
+
+// ── KEYBOARD ──────────────────────────────────────────────────────────────
+document.addEventListener('keydown', ev => {
+  if (ev.target.tagName==='INPUT') return;
+  if (ev.code==='Space') { ev.preventDefault(); togglePlay(); }
+  if (ev.code==='ArrowRight' || ev.code==='ArrowLeft') {
+    if (ev.code==='ArrowRight') currentMonth = Math.min(72, currentMonth+1);
+    else                        currentMonth = Math.max(0,  currentMonth-1);
+    selectedBattle = null;
+    document.getElementById('battle-detail').style.display = 'none';
+    document.getElementById('auto-highlight').classList.remove('visible');
+    document.getElementById('panel-placeholder').style.display = 'block';
+    document.querySelectorAll('.battle-item').forEach(el => el.classList.remove('active-item'));
+    updateMap();
+  }
+});
+
+// ── FILTERS ───────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const f = this.dataset.filter;
+    if (activeFilters.has(f)) {
+      if (activeFilters.size===1) return;
+      activeFilters.delete(f); this.classList.remove('active');
+    } else {
+      activeFilters.add(f); this.classList.add('active');
+    }
+    filterTicks();
+    updateMap();
+  });
+});
+
+// ── MOBILE PANEL ──────────────────────────────────────────────────────────
+document.getElementById('mpanel-btn').addEventListener('click', () => {
+  document.getElementById('side-panel').classList.toggle('open');
+});
+
+// ── RESIZE ────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  W=mapWrap.clientWidth; H=mapWrap.clientHeight;
+  projection.scale(W/6.5).translate([W/2,H/2]);
+  // Fix 2: reset so recentreMap re-evaluates after resize
+  lastRotationTarget = null;
+  g.selectAll('path').filter(function(){ return d3.select(this).attr('fill')==='#0b1520' || d3.select(this).attr('stroke')==='rgba(255,255,255,0.035)'; }).attr('d', pathGen);
+  countryGroup.selectAll('path').attr('d', pathGen);
+  buildFrontlines(); updateFrontlines();
+  markerGroup.selectAll('g.battle-marker').attr('transform', d => {
+    const p = projection([d.lon,d.lat]); return p?`translate(${p[0]},${p[1]})`:'translate(-9999,-9999)';
+  });
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+loadMap().catch(e => { document.getElementById('loading-text').textContent='로딩 실패: '+e.message; });
+</script>
+</body>
+</html>
