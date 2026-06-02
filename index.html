@@ -219,98 +219,135 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
 </div>
 
 <script>
-// ── BATTLES (scale 1-10 → marker radius 1.5–4.5 via scaleToRadius) ─────────
+// ── BATTLES (scale 1-10 → marker radius via scaleToRadius) ─────────────
 const BATTLES = [
   {id:'poland',    name:'폴란드 침공',       loc:'폴란드 바르샤바',        lat:52.2, lon:21.0, month:0,  result:'axis',   theater:'europe',  scale:8,
    desc:'독일과 소련이 폴란드를 동서에서 협공. 35일 만에 함락되며 2차대전이 시작됐다. 전격전(Blitzkrieg) 전술이 처음 대규모로 사용됐다.',
    allied:'폴란드·영국·프랑스', axis:'독일·소련', casualties:'20만 명 이상',
    commanders:[{side:'allied',name:'리즈-시미그위 원수'},{side:'axis',name:'브라우히치 대장 / 보로실로프'}]},
-  {id:'finland',   name:'겨울 전쟁',          loc:'핀란드',                 lat:61.5, lon:26.0, month:3,  result:'axis',   theater:'europe',  scale:5,
-   desc:'소련의 핀란드 침공. 핀란드군의 완강한 저항으로 소련군이 막대한 피해를 입었지만 결국 핀란드는 영토를 할양했다.',
+
+  {id:'finland',   name:'겨울 전쟁',          loc:'핀란드',                 lat:61.5, lon:26.0, month:2,  result:'axis',   theater:'europe',  scale:5,
+   desc:'소련의 핀란드 침공(1939.11). 핀란드군이 3개월간 격렬히 저항했으나 결국 영토를 할양했다. 소련의 군사적 취약성이 드러나 독일의 소련 침공을 부추겼다.',
    allied:'핀란드', axis:'소련', casualties:'35만 명 이상',
    commanders:[{side:'allied',name:'만네르헤임 원수'},{side:'axis',name:'티모셴코 원수'}]},
+
   {id:'norway',    name:'노르웨이 침공',       loc:'노르웨이 오슬로',        lat:59.9, lon:10.7, month:7,  result:'axis',   theater:'europe',  scale:5,
-   desc:'독일이 덴마크와 노르웨이를 동시에 점령. 영국·프랑스의 지원에도 2개월 만에 함락됐다.',
+   desc:'독일이 덴마크와 노르웨이를 동시에 점령(1940.04). 영국·프랑스의 지원에도 불구하고 2개월 만에 함락됐다.',
    allied:'노르웨이·영국·프랑스', axis:'독일', casualties:'5,600명',
    commanders:[{side:'allied',name:'로게 중장'},{side:'axis',name:'팔켄호르스트 대장'}]},
+
   {id:'france',    name:'프랑스 함락',         loc:'프랑스',                 lat:48.8, lon:2.3,  month:9,  result:'axis',   theater:'europe',  scale:9,
    desc:'아르덴느 돌파로 마지노선 우회. 6주 만에 프랑스 함락. 됭케르크 철수(다이나모 작전)로 영국군 33만 명 탈출. 이후 비시 프랑스 괴뢰정권 수립.',
    allied:'프랑스·영국', axis:'독일', casualties:'36만 명',
    commanders:[{side:'allied',name:'가믈랭 대장 / 처칠'},{side:'axis',name:'만슈타인 대장 / 룬트슈테트'}]},
+
   {id:'britain',   name:'영국 본토 항공전',    loc:'영국',                   lat:51.5, lon:-1.5, month:11, result:'allied', theater:'europe',  scale:7,
-   desc:'독일 공군의 영국 제공권 장악 시도. RAF의 완강한 저항으로 독일의 영국 상륙(바다사자 작전)이 포기됐다.',
+   desc:'독일 공군의 영국 제공권 장악 시도(1940.07~10). RAF의 완강한 저항으로 독일의 영국 상륙 작전(바다사자 작전)이 포기됐다.',
    allied:'영국', axis:'독일', casualties:'4만 4천 명',
    commanders:[{side:'allied',name:'다우딩 공군원수'},{side:'axis',name:'괴링 공군원수'}]},
-  {id:'barbarossa',name:'바르바로사 작전',     loc:'소련 서부전선',           lat:52.0, lon:32.0, month:21, result:'axis',   theater:'europe',  scale:10,
-   desc:'독일의 소련 침공. 역사상 최대 규모 지상 작전. 초기 독일군이 급속 진격했으나 모스크바 앞에서 저지됐다.',
-   allied:'소련', axis:'독일·루마니아·핀란드', casualties:'1,000만 명 이상',
-   commanders:[{side:'allied',name:'주코프 대장'},{side:'axis',name:'브라우히치 원수'}]},
+
   {id:'tobruk',    name:'토브루크 공방전',     loc:'리비아 토브루크',         lat:32.1, lon:23.0, month:20, result:'axis',   theater:'africa',  scale:5,
-   desc:'북아프리카의 요충지 토브루크를 둘러싼 공방전. 롬멜의 아프리카 군단이 영국 방어선을 돌파했다.',
-   allied:'영국·호주', axis:'독일·이탈리아', casualties:'3만 3천 명',
+   desc:'북아프리카 요충지 토브루크를 둘러싼 공방전(1942.06). 롬멜의 아프리카 군단이 영국 방어선을 돌파하고 함락시켰다. 처칠에게 큰 정치적 타격을 입혔다.',
+   allied:'영국·남아프리카', axis:'독일·이탈리아', casualties:'5만 명 이상',
    commanders:[{side:'allied',name:'리치 중장'},{side:'axis',name:'롬멜 원수'}]},
-  {id:'moscow',    name:'모스크바 전투',        loc:'소련 모스크바',           lat:55.7, lon:37.6, month:27, result:'allied', theater:'europe',  scale:8,
-   desc:'소련 침공 이후 최초의 대규모 격퇴. 소련군이 혹한과 반격으로 독일군을 저지했다.',
+
+  {id:'barbarossa',name:'바르바로사 작전',     loc:'소련 서부전선',           lat:52.0, lon:32.0, month:21, result:'axis',   theater:'europe',  scale:10,
+   desc:'독일의 소련 침공(1941.06). 역사상 최대 규모 지상 작전. 3개 집단군이 동시 진격해 수백만 소련군을 포위했으나 모스크바 앞에서 저지됐다.',
+   allied:'소련', axis:'독일·루마니아·헝가리·핀란드', casualties:'1,000만 명 이상',
+   commanders:[{side:'allied',name:'주코프 대장'},{side:'axis',name:'브라우히치 원수'}]},
+
+  {id:'moscow',    name:'모스크바 전투',        loc:'소련 모스크바',           lat:55.7, lon:37.6, month:25, result:'allied', theater:'europe',  scale:8,
+   desc:'독일군의 모스크바 진격(1941.10~1942.01)을 소련군이 혹한과 반격으로 저지했다. 독일군 최초의 대규모 패퇴로 전쟁의 흐름이 바뀌기 시작했다.',
    allied:'소련', axis:'독일', casualties:'100만 명 이상',
    commanders:[{side:'allied',name:'주코프 대장'},{side:'axis',name:'보크 원수'}]},
+
   {id:'pearlharbor',name:'진주만 공습',        loc:'하와이 진주만',           lat:21.3, lon:-157.9,month:27, result:'axis',  theater:'pacific', scale:7,
-   desc:'일본 해군의 기습으로 미 태평양 함대에 막대한 피해. 미국의 2차대전 참전 계기가 됐다.',
+   desc:'일본 해군의 기습(1941.12.07)으로 미 태평양 함대에 막대한 피해. 미국의 2차대전 참전 계기가 됐다. 항공모함은 출항 중이어서 피해를 면했다.',
    allied:'미국', axis:'일본', casualties:'2,403명',
    commanders:[{side:'allied',name:'킴멜 제독'},{side:'axis',name:'나구모 주이치 중장'}]},
+
+  {id:'philippines', name:'필리핀 함락',       loc:'필리핀 바탄',             lat:14.6, lon:120.5,month:29, result:'axis',   theater:'pacific', scale:7,
+   desc:'일본군이 필리핀을 점령(1942.05). 맥아더 장군이 탈출하며 "나는 돌아온다"는 유명한 말을 남겼다. 포로가 된 미·필리핀군은 바탄 죽음의 행진을 강요당했다.',
+   allied:'미국·필리핀', axis:'일본', casualties:'10만 명 이상',
+   commanders:[{side:'allied',name:'맥아더 대장'},{side:'axis',name:'혼마 마사하루 중장'}]},
+
   {id:'coral',     name:'산호해 해전',          loc:'산호해',                 lat:-15.0,lon:154.0,month:32, result:'allied', theater:'pacific', scale:5,
-   desc:'항공모함이 직접 교전한 최초의 해전. 일본의 포트모르즈비 상륙을 저지했다.',
-   allied:'미국·호주', axis:'일본', casualties:'2,200명',
+   desc:'항공모함이 직접 교전한 최초의 해전(1942.05). 일본의 포트모르즈비 상륙을 저지했다. 전술적으로는 무승부였으나 전략적으로 연합군이 이겼다.',
+   allied:'미국·호주', axis:'일본', casualties:'5,000명 이상',
    commanders:[{side:'allied',name:'플레처 제독'},{side:'axis',name:'이노우에 시게요시 중장'}]},
+
   {id:'midway',    name:'미드웨이 해전',         loc:'미드웨이 섬',            lat:28.2, lon:-177.4,month:33, result:'allied', theater:'pacific', scale:8,
-   desc:'태평양 전쟁의 분수령. 미군이 일본 항공모함 4척을 격침, 태평양 주도권을 장악했다.',
+   desc:'태평양 전쟁의 분수령(1942.06). 미군이 일본 항공모함 4척을 격침, 태평양 주도권을 장악했다. 미군은 암호 해독으로 일본의 작전을 미리 파악했다.',
    allied:'미국', axis:'일본', casualties:'3,400명',
    commanders:[{side:'allied',name:'니미츠 제독 / 스프루언스'},{side:'axis',name:'야마모토 이소로쿠 원수'}]},
-  {id:'elalmein',  name:'엘알라메인 전투',       loc:'이집트 엘알라메인',      lat:30.8, lon:28.9, month:37, result:'allied', theater:'africa',  scale:7,
-   desc:'북아프리카 전선의 전환점. 롬멜의 아프리카 군단이 몽고메리의 영국 제8군에 격퇴됐다.',
-   allied:'영국·영연방', axis:'독일·이탈리아', casualties:'5만 명',
-   commanders:[{side:'allied',name:'몽고메리 장군'},{side:'axis',name:'롬멜 원수'}]},
-  {id:'stalingrad',name:'스탈린그라드 전투',    loc:'소련 스탈린그라드',      lat:48.7, lon:44.5, month:36, result:'allied', theater:'europe',  scale:10,
-   desc:'2차대전 최대 지상전. 독일 6군이 포위·항복하며 동부전선의 결정적 전환점이 됐다. 사상자 200만 명 이상.',
+
+  {id:'stalingrad',name:'스탈린그라드 전투',    loc:'소련 스탈린그라드',      lat:48.7, lon:44.5, month:35, result:'allied', theater:'europe',  scale:10,
+   desc:'2차대전 최대 지상전(1942.08~1943.02). 독일 6군이 포위·항복하며 동부전선의 결정적 전환점이 됐다. 파울루스 야전원수가 항복한 첫 독일 원수가 됐다.',
    allied:'소련', axis:'독일', casualties:'200만 명 이상',
-   commanders:[{side:'allied',name:'추이코프 장군'},{side:'axis',name:'파울루스 원수'}]},
-  {id:'guadalcanal',name:'과달카날 전투',       loc:'솔로몬 제도',            lat:-9.6, lon:160.2,month:36, result:'allied', theater:'pacific', scale:7,
-   desc:'태평양 연합군의 첫 대규모 반격. 6개월간 격전 끝에 일본군을 축출, 반격의 발판이 됐다.',
+   commanders:[{side:'allied',name:'추이코프 장군'},{side:'axis',name:'파울루스 야전원수'}]},
+
+  {id:'guadalcanal',name:'과달카날 전투',       loc:'솔로몬 제도',            lat:-9.6, lon:160.2,month:35, result:'allied', theater:'pacific', scale:7,
+   desc:'태평양 연합군의 첫 대규모 반격(1942.08~1943.02). 6개월간 격전 끝에 일본군을 축출, 반격의 발판이 됐다.',
    allied:'미국·호주', axis:'일본', casualties:'7만 명',
    commanders:[{side:'allied',name:'밴더그리프트 소장'},{side:'axis',name:'햐쿠타케 하루키치 중장'}]},
+
+  {id:'elalmein',  name:'엘알라메인 전투',       loc:'이집트 엘알라메인',      lat:30.8, lon:28.9, month:37, result:'allied', theater:'africa',  scale:7,
+   desc:'북아프리카 전선의 전환점(1942.10). 몽고메리의 영국 제8군이 롬멜의 아프리카 군단을 격퇴했다. 이후 독일·이탈리아군은 튀니지까지 후퇴했다.',
+   allied:'영국·영연방', axis:'독일·이탈리아', casualties:'5만 명',
+   commanders:[{side:'allied',name:'몽고메리 장군'},{side:'axis',name:'롬멜 원수'}]},
+
   {id:'kursk',     name:'쿠르스크 전투',         loc:'소련 쿠르스크',          lat:51.7, lon:36.2, month:46, result:'allied', theater:'europe',  scale:10,
-   desc:'역사상 최대 전차전. 독일의 치타델 작전이 격퇴되며 동부전선 주도권이 완전히 소련으로 넘어갔다.',
+   desc:'역사상 최대 전차전(1943.07). 독일의 치타델 작전이 소련군에 격퇴되며 동부전선 주도권이 완전히 소련으로 넘어갔다.',
    allied:'소련', axis:'독일', casualties:'85만 명',
    commanders:[{side:'allied',name:'로코솝스키 / 바투틴'},{side:'axis',name:'만슈타인 / 클루게'}]},
+
   {id:'italy',     name:'이탈리아 상륙',          loc:'이탈리아 시칠리아',      lat:37.5, lon:14.0, month:46, result:'allied', theater:'europe',  scale:6,
-   desc:'허스키 작전으로 시칠리아 상륙. 무솔리니 실각, 이탈리아 항복. 독일이 이탈리아를 점령했다.',
+   desc:'허스키 작전으로 시칠리아 상륙(1943.07). 무솔리니가 실각하고 이탈리아가 항복했다. 그러나 독일이 이탈리아를 점령해 전선은 계속됐다.',
    allied:'미국·영국', axis:'독일·이탈리아', casualties:'3만 명',
    commanders:[{side:'allied',name:'아이젠하워 대장'},{side:'axis',name:'케셀링 원수'}]},
+
+  {id:'saipan',    name:'사이판 전투',            loc:'사이판 섬',              lat:15.2, lon:145.7,month:57, result:'allied', theater:'pacific', scale:7,
+   desc:'사이판 함락(1944.06)으로 미군이 B-29 폭격기의 일본 본토 폭격 기지를 확보했다. 일본 민간인 수천 명이 절벽에서 투신해 충격을 줬다.',
+   allied:'미국', axis:'일본', casualties:'5만 5천 명',
+   commanders:[{side:'allied',name:'스미스 중장'},{side:'axis',name:'사이토 요시쓰구 중장'}]},
+
   {id:'normandy',  name:'노르망디 상륙작전',      loc:'프랑스 노르망디',        lat:49.3, lon:-0.8, month:57, result:'allied', theater:'europe',  scale:10,
-   desc:'오버로드 작전. 역사상 최대 규모 상륙작전으로 서부 제2전선이 열렸다. D-Day 당일 15만 6천 명 상륙.',
+   desc:'오버로드 작전(1944.06.06). 역사상 최대 규모 상륙작전으로 서부 제2전선이 열렸다. D-Day 당일 15만 6천 명 상륙.',
    allied:'미국·영국·캐나다', axis:'독일', casualties:'22만 명',
    commanders:[{side:'allied',name:'아이젠하워 원수'},{side:'axis',name:'롬멜 원수'}]},
+
   {id:'leyte',     name:'레이테 만 해전',         loc:'필리핀 레이테',          lat:11.0, lon:125.0,month:61, result:'allied', theater:'pacific', scale:8,
-   desc:'역사상 최대 규모 해전. 일본 해군이 궤멸되며 가미카제 특공대가 처음 대규모로 등장했다.',
+   desc:'역사상 최대 규모 해전(1944.10). 일본 해군이 사실상 궤멸되며 가미카제 특공대가 처음 대규모로 등장했다.',
    allied:'미국', axis:'일본', casualties:'1만 5천 명',
    commanders:[{side:'allied',name:'핼시 제독 / 킨케이드'},{side:'axis',name:'도요다 소에무 제독'}]},
+
   {id:'bulge',     name:'벌지 전투',              loc:'벨기에·룩셈부르크',     lat:50.1, lon:5.8,  month:63, result:'allied', theater:'europe',  scale:8,
-   desc:'독일의 마지막 대규모 서부전선 반격. 초기 돌파에 성공했으나 연합군이 반격해 독일 패망을 앞당겼다.',
+   desc:'독일의 마지막 대규모 서부전선 반격(1944.12). 아르덴느 숲을 통해 기습 돌파했으나 연합군이 반격해 독일 패망을 앞당겼다.',
    allied:'미국·영국', axis:'독일', casualties:'18만 6천 명',
    commanders:[{side:'allied',name:'아이젠하워 / 패튼'},{side:'axis',name:'룬트슈테트 / 만토이펠'}]},
+
   {id:'iwojima',   name:'이오지마 전투',           loc:'이오지마',              lat:24.8, lon:141.3,month:65, result:'allied', theater:'pacific', scale:8,
-   desc:'"수리바치산 성조기 게양"으로 유명. 일본군 2만 명 중 생존자 216명. 태평양 전쟁 최격전.',
+   desc:'"수리바치산 성조기 게양"으로 유명(1945.02~03). 일본군 2만 1천 명 중 생존자 216명. 미군도 2만 6천 명 사상자를 냈다.',
    allied:'미국', axis:'일본', casualties:'2만 8천 명',
    commanders:[{side:'allied',name:'스미스 중장'},{side:'axis',name:'쿠리바야시 다다미치 중장'}]},
+
+  {id:'imphal',    name:'임팔 작전',               loc:'인도 임팔',             lat:24.8, lon:93.9, month:66, result:'allied', theater:'pacific', scale:6,
+   desc:'일본군의 인도 침공 시도(1944.03~07). 임팔과 코히마에서 영국·인도군이 격렬히 저항해 일본군을 격퇴했다. 일본군은 3만 명 이상 사망하며 후퇴했다.',
+   allied:'영국·인도', axis:'일본', casualties:'10만 명',
+   commanders:[{side:'allied',name:'슬림 장군'},{side:'axis',name:'무타구치 렌야 중장'}]},
+
   {id:'berlin',    name:'베를린 전투',             loc:'독일 베를린',           lat:52.5, lon:13.4, month:67, result:'allied', theater:'europe',  scale:9,
-   desc:'소련군이 베를린을 포위·공략. 히틀러 자살, 독일 무조건 항복으로 유럽 전쟁이 종전됐다.',
+   desc:'소련군이 베를린을 포위·공략(1945.04~05). 히틀러 자살, 독일 무조건 항복으로 유럽 전쟁이 종전됐다.',
    allied:'소련', axis:'독일', casualties:'30만 명 이상',
    commanders:[{side:'allied',name:'주코프 원수'},{side:'axis',name:'바이들링 장군'}]},
+
   {id:'okinawa',   name:'오키나와 전투',            loc:'오키나와',             lat:26.3, lon:127.8,month:67, result:'allied', theater:'pacific', scale:9,
-   desc:'태평양 최대 상륙전. 민간인 희생이 극심했으며 일본 본토 상륙을 위한 발판이 됐다.',
+   desc:'태평양 최대 상륙전(1945.04~06). 민간인 희생이 극심해 오키나와 주민 4분의 1이 사망했다. 일본 본토 상륙의 발판이 됐다.',
    allied:'미국', axis:'일본', casualties:'20만 명 이상',
    commanders:[{side:'allied',name:'버크너 중장'},{side:'axis',name:'우시지마 미쓰루 중장'}]},
+
   {id:'atomic',    name:'원자폭탄 투하',            loc:'일본 히로시마·나가사키', lat:34.4, lon:132.5,month:71, result:'allied', theater:'pacific', scale:9,
-   desc:'히로시마(8/6)·나가사키(8/9)에 원폭 투하. 일본이 무조건 항복을 선언하며 2차대전이 완전히 종전됐다.',
+   desc:'히로시마(1945.08.06)·나가사키(1945.08.09)에 원폭 투하. 일본이 무조건 항복을 선언하며 2차대전이 완전히 종전됐다.',
    allied:'미국', axis:'일본', casualties:'21만 명 이상',
    commanders:[{side:'allied',name:'스파츠 / 티베츠'},{side:'axis',name:'도고 시게노리 외상'}]},
 ];
@@ -340,7 +377,7 @@ const CONTROL = {
   'JP':[{f:0,t:71,s:'axis'}],
   'KR':[{f:0,t:71,s:'axis'}],
   'LU':[{f:9,t:57,s:'axis'},{f:58,t:72,s:'allied'}],
-  'LY':[{f:0,t:40,s:'axis'},{f:41,t:72,s:'allied'}],
+  'LY':[{f:0,t:51,s:'axis'},{f:52,t:72,s:'allied'}],
   'MA':[{f:0,t:72,s:'allied'}],
   'MY':[{f:27,t:65,s:'axis'}],
   'NL':[{f:8,t:57,s:'axis'},{f:58,t:72,s:'allied'}],
@@ -357,7 +394,7 @@ const CONTROL = {
   'ES':[{f:0,t:72,s:'neutral'}],
   'CH':[{f:0,t:72,s:'neutral'}],
   'TH':[{f:27,t:71,s:'axis'}],
-  'TN':[{f:38,t:44,s:'axis'},{f:45,t:72,s:'allied'}],
+  'TN':[{f:38,t:51,s:'axis'},{f:52,t:72,s:'allied'}],
   'TR':[{f:0,t:72,s:'neutral'}],
   'UA':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
   'US':[{f:0,t:26,s:'neutral'},{f:27,t:72,s:'allied'}],
@@ -916,23 +953,24 @@ function applyLayout() {
   document.documentElement.style.setProperty('--touch', '1');
 
   if (landscape) {
-    // Panel slides in from the RIGHT, full screen height
+    // Panel slides in from the RIGHT — must start below the header
+    const headerH = document.getElementById('header').getBoundingClientRect().height;
     const panelW = Math.min(300, Math.round(window.innerWidth * 0.38));
+    const panelH = window.innerHeight - headerH;
     panel.style.cssText = `
-      position:absolute; top:0; right:0; bottom:0; left:auto;
-      width:${panelW}px; height:${window.innerHeight}px;
-      max-height:${window.innerHeight}px;
+      position:absolute; top:${headerH}px; right:0; bottom:0; left:auto;
+      width:${panelW}px; height:${panelH}px;
+      max-height:${panelH}px;
       border-left:1px solid rgba(200,184,138,0.18); border-top:none;
       display:flex; flex-direction:column; overflow:hidden;
       transform:${isOpen ? 'translateX(0)' : `translateX(${panelW}px)`};
       transition:transform .3s ease; z-index:15;
       background:rgba(8,9,6,0.97);
     `;
-    // toggle button: vertically centered, moves with panel
     btn.style.cssText = `
       display:flex; position:absolute; z-index:16;
       right:${isOpen ? panelW + 8 : 11}px;
-      top:${Math.round(window.innerHeight/2) - 20}px;
+      top:${headerH + Math.round(panelH / 2) - 20}px;
       width:40px; height:40px; border-radius:50%;
       background:rgba(17,18,9,0.95); border:1px solid rgba(200,184,138,0.25);
       align-items:center; justify-content:center;
@@ -940,8 +978,7 @@ function applyLayout() {
       transition:right .3s ease;
     `;
     sizeLeg.style.display = 'none';
-    // legend: compact
-    document.getElementById('legend').style.maxHeight = Math.round(window.innerHeight * 0.35) + 'px';
+    document.getElementById('legend').style.maxHeight = Math.round(panelH * 0.35) + 'px';
     document.getElementById('legend').style.overflowY = 'auto';
     applyTouchTextSize(true);
   } else {
