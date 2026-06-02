@@ -92,8 +92,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
 .ri-x{float:right;font-size:9px;padding:1px 5px;border-radius:2px;background:rgba(192,57,43,0.18);color:#f07060;font-family:'Share Tech Mono',monospace;}
 
 /* AUTO HIGHLIGHT */
-#auto-highlight{padding:8px 10px;margin-bottom:6px;border:1px solid rgba(200,184,138,0.22);border-radius:3px;background:rgba(200,184,138,0.05);display:none;}
+#auto-highlight{padding:8px 10px;margin-bottom:0;border:1px solid rgba(200,184,138,0.22);border-radius:3px;background:rgba(200,184,138,0.05);display:none;}
 #auto-highlight.visible{display:block;}
+#battle-detail-wrap{margin-top:8px;padding-top:8px;border-top:1px solid rgba(200,184,138,0.12);}
 .ah-label{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--tan);letter-spacing:0.08em;margin-bottom:4px;}
 .ah-name{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--tan);cursor:pointer;line-height:1.2;}
 .ah-name:hover{color:#fff;}
@@ -195,8 +196,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#080906;color:var(--
           <div class="ah-name" id="ah-name">—</div>
           <div class="ah-meta" id="ah-meta"></div>
         </div>
-        <div id="battle-detail"></div>
-        <div id="battle-list"></div>
+        <div id="battle-detail" style="display:none"></div>
+        <div id="battle-list" style="display:none"></div>
         <div id="panel-placeholder" style="color:var(--muted);font-size:11px;line-height:1.9;margin-top:4px;">
           지도의 마커를 클릭하거나<br>전투 목록을 확인하세요.<br><br>
           <span style="font-family:'Share Tech Mono',monospace;font-size:8px;opacity:.6;">
@@ -512,14 +513,10 @@ let recentreRaf = null;
 let lastRotationTarget = null; // null = not yet set, always run on first call
 
 function recentreMap(month) {
-  // Fix 1: skip rotation entirely when a battle is selected (zoom is active)
-  if (selectedBattle) return;
-
   const target = getRotationForMonth(month);
   if (target === lastRotationTarget) return;
   lastRotationTarget = target;
 
-  // Fix 3: if cancelling an in-progress animation, restore fill transition first
   if (recentreRaf) {
     cancelAnimationFrame(recentreRaf);
     recentreRaf = null;
@@ -535,7 +532,10 @@ function recentreMap(month) {
   const dur = 900;
   const t0 = performance.now();
 
-  svg.transition().duration(300).call(zoomBeh.transform, d3.zoomIdentity);
+  // 전투 선택 중이 아닐 때만 줌 리셋
+  if (!selectedBattle) {
+    svg.transition().duration(300).call(zoomBeh.transform, d3.zoomIdentity);
+  }
 
   function step(now) {
     const t = Math.min((now - t0) / dur, 1);
@@ -635,6 +635,7 @@ function ringGap(s) { return window.matchMedia('(pointer: coarse)').matches ? 4 
 
 // ── MARKERS ───────────────────────────────────────────────────────────────
 function buildMarkers() {
+  markerGroup.selectAll('*').remove(); // 중복 방지
   const color = d => d.result === 'allied' ? '#3a9fd8' : '#d44030';
 
   const groups = markerGroup.selectAll('g.battle-marker')
@@ -706,15 +707,18 @@ function updateMarkers() {
 
 // ── AUTO HIGHLIGHT ────────────────────────────────────────────────────────
 function updateAutoHighlight() {
-  if (activeTab !== 'info' || selectedBattle) return;
-  // find nearest battle within ±2 months
+  const el = document.getElementById('auto-highlight');
+  // info 탭이 아니면 숨김 (마커 선택 여부와 무관하게 항상 표시)
+  if (activeTab !== 'info') {
+    el.classList.remove('visible');
+    return;
+  }
   let nearest = null, minDiff = 999;
   for (const b of BATTLES) {
     if (!activeFilters.has(b.theater)) continue;
     const diff = Math.abs(b.month - currentMonth);
     if (diff < minDiff) { minDiff = diff; nearest = b; }
   }
-  const el = document.getElementById('auto-highlight');
   if (nearest && minDiff <= 3) {
     el.classList.add('visible');
     document.getElementById('ah-name').textContent = nearest.name;
@@ -745,13 +749,16 @@ function updateMap() {
 function selectBattle(b) {
   selectedBattle = b;
   document.getElementById('panel-placeholder').style.display = 'none';
-  document.getElementById('auto-highlight').classList.remove('visible');
+  // auto-highlight는 숨기지 않음 — 위에 유지, 상세정보는 아래에 표시
 
   const cmdrHtml = b.commanders.map(c =>
     `<div class="cmdr-row"><span class="cmdr-side cmdr-${c.side}">${c.side==='allied'?'연합':'추축'}</span><span class="cmdr-name">${c.name}</span></div>`
   ).join('');
 
-  document.getElementById('battle-detail').innerHTML = `
+  const detEl = document.getElementById('battle-detail');
+  const ahVisible = document.getElementById('auto-highlight').classList.contains('visible');
+  detEl.className = ahVisible ? 'battle-detail-wrap' : '';
+  detEl.innerHTML = `
     <div class="b-name">${b.name}</div>
     <div class="b-meta">${monthToLabel(b.month)} · ${b.loc}</div>
     <div class="b-badge ${b.result==='allied'?'ba':'bx'}">${b.result==='allied'?'연합군 승리':'추축군 승리'}</div>
@@ -826,7 +833,6 @@ function setTab(tab) {
     det.style.display = 'none';
     lst.style.display = 'block';
     ph.style.display  = 'none';
-    document.getElementById('auto-highlight').classList.remove('visible');
   }
 }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
@@ -872,8 +878,8 @@ playBtn.addEventListener('click', togglePlay);
 document.getElementById('timeline-slider').addEventListener('input', function() {
   currentMonth = parseInt(this.value);
   selectedBattle = null;
+  lastRotationTarget = null;
   document.getElementById('battle-detail').style.display = 'none';
-  document.getElementById('auto-highlight').classList.remove('visible');
   document.getElementById('panel-placeholder').style.display = 'block';
   document.querySelectorAll('.battle-item').forEach(el => el.classList.remove('active-item'));
   updateMap();
@@ -893,8 +899,8 @@ document.addEventListener('keydown', ev => {
     if (ev.code==='ArrowRight') currentMonth = Math.min(72, currentMonth+1);
     else                        currentMonth = Math.max(0,  currentMonth-1);
     selectedBattle = null;
+    lastRotationTarget = null;
     document.getElementById('battle-detail').style.display = 'none';
-    document.getElementById('auto-highlight').classList.remove('visible');
     document.getElementById('panel-placeholder').style.display = 'block';
     document.querySelectorAll('.battle-item').forEach(el => el.classList.remove('active-item'));
     updateMap();
