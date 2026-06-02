@@ -708,11 +708,11 @@ function updateMarkers() {
 // ── AUTO HIGHLIGHT ────────────────────────────────────────────────────────
 function updateAutoHighlight() {
   const el = document.getElementById('auto-highlight');
-  // info 탭이 아니면 숨김 (마커 선택 여부와 무관하게 항상 표시)
   if (activeTab !== 'info') {
     el.classList.remove('visible');
     return;
   }
+  el.classList.add('visible');
   let nearest = null, minDiff = 999;
   for (const b of BATTLES) {
     if (!activeFilters.has(b.theater)) continue;
@@ -720,12 +720,17 @@ function updateAutoHighlight() {
     if (diff < minDiff) { minDiff = diff; nearest = b; }
   }
   if (nearest && minDiff <= 3) {
-    el.classList.add('visible');
     document.getElementById('ah-name').textContent = nearest.name;
+    document.getElementById('ah-name').style.opacity = '1';
+    document.getElementById('ah-name').style.cursor = 'pointer';
     document.getElementById('ah-meta').textContent = `${monthToLabel(nearest.month)} · ${nearest.loc}`;
     document.getElementById('ah-name').onclick = () => selectBattle(nearest);
   } else {
-    el.classList.remove('visible');
+    document.getElementById('ah-name').textContent = '이 시점에 주요 전투 없음';
+    document.getElementById('ah-name').style.opacity = '0.4';
+    document.getElementById('ah-name').style.cursor = 'default';
+    document.getElementById('ah-meta').textContent = '슬라이더를 움직여 전투 시점으로 이동하세요';
+    document.getElementById('ah-name').onclick = null;
   }
 }
 
@@ -833,6 +838,7 @@ function setTab(tab) {
     det.style.display = 'none';
     lst.style.display = 'block';
     ph.style.display  = 'none';
+    document.getElementById('auto-highlight').classList.remove('visible');
   }
 }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
